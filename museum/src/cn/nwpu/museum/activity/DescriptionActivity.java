@@ -25,6 +25,11 @@ import android.widget.TabHost.OnTabChangeListener;
 import android.widget.TabWidget;
 import android.widget.TextView;
 
+/**
+ * 
+ * @author liuruofeng
+ *
+ */
 public class DescriptionActivity extends FragmentActivity implements OnTabChangeListener {
 
 	 private DescriptionPagerAdapter mPagerAdapter;
