@@ -1,0 +1,24 @@
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    tools:context=".MapActivity" >
+
+ 
+    <ImageView 
+        android:id="@+id/imagemap"  
+        android:layout_width="wrap_content"  
+        android:layout_height="fill_parent"
+        android:src="@drawable/map"
+        android:scaleType="matrix"/>
+
+      <Button
+          android:id="@+id/btnmap"
+          android:layout_width="wrap_content"
+          android:layout_height="wrap_content"
+          android:layout_alignParentBottom="true"
+          android:layout_alignParentLeft="true"
+          android:layout_marginBottom="38dp"
+          android:layout_marginLeft="16dp" />
+    
+</RelativeLayout>

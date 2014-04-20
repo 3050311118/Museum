@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+    <string name="app_name">智能博物馆</string>
+    <string name="description_title">铜车马陪葬坑</string>
+    <string name="hello_world">  1980年12月，考古工作者在秦始皇帝陵封土西侧20米、距现地表7．8米深的地下发掘出了两乘大型彩绘铜车马。两乘铜车马一前一后放置在一个木椁内，因木椁腐朽，上部的填土塌陷，铜车马出土时均已被压碎，但由于未被盗扰，原位没有大的变动，车马的构件基本齐全。这是我国考古史上发现最早、体形最大、保存最完整的青铜车马，对研究我国秦代冶炼与青铜制造技术、车辆结构等具有极重要的价值</string>
+    <string name="menu_settings">Settings</string>
+    <string name="title_activity_description">DescriptionActivity</string>
+    <string name="title_description">展品介绍</string>
+    <string name="title_activity_map">地图导览</string>
+
+</resources>
