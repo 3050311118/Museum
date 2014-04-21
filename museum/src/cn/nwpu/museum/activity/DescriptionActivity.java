@@ -6,9 +6,16 @@ import java.util.List;
 
 import cn.nwpu.museum.bean.Exhibit;
 import cn.nwpu.museum.fragment.DesciptionFragment;
+import cn.nwpu.museum.fragment.WifiDialogFragment;
 import cn.nwpu.museum.service.ExhibitService;
+import cn.nwpu.museum.service.IRService;
+import android.net.wifi.WifiInfo;
+import android.net.wifi.WifiManager;
 import android.os.Bundle;
+import android.R.integer;
 import android.app.Activity;
+import android.content.BroadcastReceiver;
+import android.content.Context;
 import android.content.Intent;
 import android.support.v4.app.Fragment;
 import android.support.v4.app.FragmentActivity;
@@ -32,6 +39,7 @@ import android.widget.TextView;
  */
 public class DescriptionActivity extends FragmentActivity implements OnTabChangeListener {
 
+	 private final String TAG="DescriptionActivity";
 	 private DescriptionPagerAdapter mPagerAdapter;
 	 private ViewPager mViewPager;
 	 private ImageButton mBtnLeft;
@@ -39,13 +47,17 @@ public class DescriptionActivity extends FragmentActivity implements OnTabChange
 	 private TabHost mTabs;
 	 private int currentPage = 0;
 	 private int numofPages = 0;
-	 
+	 private Bundle bundle;
+	 private IRService irService;
+	 private final String SSID = "309b";
 	 //显示的展品列表
 	 private List<exhibit> mExhibits;
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
 		setContentView(R.layout.activity_description);
+		
+		irService = IRService.getIRServiceInstance();
 		mPagerAdapter =  new DescriptionPagerAdapter(getSupportFragmentManager());
 	    mViewPager = (ViewPager) findViewById(R.id.desc_pager);
 	    mViewPager.setAdapter(mPagerAdapter);
@@ -73,7 +85,7 @@ public class DescriptionActivity extends FragmentActivity implements OnTabChange
        initTab();
        
        //获得展品列表
-       Bundle bundle = getIntent().getBundleExtra("HALL");
+       bundle = getIntent().getBundleExtra("HALL");
        mExhibits = new ArrayList<exhibit>();
        if(bundle != null){
     	   String hallnumber = bundle.getString("HALLNUMBER");
@@ -98,6 +110,34 @@ public class DescriptionActivity extends FragmentActivity implements OnTabChange
 	    });
 	}
 	
+	
+	@Override
+	protected void onResume() {
+       //红外模式
+		if(bundle == null){
+	 	   WifiManager wifi_service = (WifiManager)getSystemService(WIFI_SERVICE); 
+	 	   WifiInfo    wifiInfo  = wifi_service.getConnectionInfo(); 
+	 	   if( wifiInfo == null || wifiInfo.getSSID() == null || !wifiInfo.getSSID().equals(SSID)){
+	     	   WifiDialogFragment wf= new WifiDialogFragment();
+	     	   wf.show(getSupportFragmentManager(),"wifi设置");
+	        }else{
+	        	//得到ip地址，写入配置文件中
+	        	int ipaddress = wifiInfo.getIpAddress();
+	        	//开启红外
+	        	String ip= "";
+	        	ip += (ipaddress >> 24) ;
+				ip += ":"+ ((ipaddress & 0x00FF0000) >>16);
+				ip += ":" + ((ipaddress & 0x0000FF00) >>8);
+				ip += ":" + (ipaddress & 0x0000FF);
+	        	Log.i(TAG, "ip:"+ ip);
+	        	irService.SetConfigure(ipaddress, this);
+	        }
+ 	    }
+		
+		super.onResume();
+	}
+
+
 	//包含展品编号和相关展品的编号
     public class exhibit implements Comparable<Object> {
     	public int[] relatedex;
@@ -192,5 +232,41 @@ public class DescriptionActivity extends FragmentActivity implements OnTabChange
 		this.finish();
 	}
 
+	/**
+	 * 监听wifi状态的变化，如果wifi断了要提示重连，否则无法接收推送
+	 * 根据wifi状态决定是否开启红外定时发送任务。
+	 * @author liuruofeng
+	 *
+	 */
+	public class WifiStateReceiver extends BroadcastReceiver{
 
+		private String TAG="WifiStateReceiver";
+		@Override
+		/*
+	    WifiManager.WIFI_STATE_DISABLING   正在停止
+	    WifiManager.WIFI_STATE_DISABLED    已停止
+	    WifiManager.WIFI_STATE_ENABLING    正在打开
+	    WifiManager.WIFI_STATE_ENABLED     已开启
+	    WifiManager.WIFI_STATE_UNKNOWN     未知
+	     */ 
+		public void onReceive(Context context, Intent intent) {
+			switch (intent.getIntExtra("wifi_state", 0)) { 
+	        case WifiManager.WIFI_STATE_DISABLING: 
+	            Log.d(TAG, "WIFI STATUS : WIFI_STATE_DISABLING"); 
+	            break; 
+	        case WifiManager.WIFI_STATE_DISABLED: 
+	            Log.d(TAG, "WIFI STATUS : WIFI_STATE_DISABLED"); 
+	            break; 
+	        case WifiManager.WIFI_STATE_ENABLING: 
+	            Log.d(TAG, "WIFI STATUS : WIFI_STATE_ENABLING"); 
+	            break; 
+	        case WifiManager.WIFI_STATE_ENABLED: 
+	            Log.d(TAG, "WIFI STATUS : WIFI_STATE_ENABLED"); 
+	            break; 
+	        case WifiManager.WIFI_STATE_UNKNOWN: 
+	            Log.d(TAG, "WIFI STATUS : WIFI_STATE_UNKNOWN"); 
+	            break; 
+	        } 	
+		}
+	}
 }
