@@ -8,5 +8,8 @@
     <string name="title_activity_description">DescriptionActivity</string>
     <string name="title_description">展品介绍</string>
     <string name="title_activity_map">地图导览</string>
-
+    <string name="wifi_dialog_title">设置wifi连接</string>
+     <string name="wifi_dialog_message">请连接wifi:connectify-fz!</string>
+     <string name="wifi_dialog_btn_ok">设置</string>
+     <string name="wifi_dialog_btn_cancel">取消</string>
 </resources>

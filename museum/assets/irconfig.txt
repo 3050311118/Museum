@@ -1,0 +1,18 @@
+begin remote
+
+  name  MY_TV
+  bits           16
+  flags SPACE_ENC|CONST_LENGTH
+  eps            30
+  aeps          100
+
+  header       9069  4455
+  one           597  1651
+  zero          597   531
+  ptrail        591
+  repeat       9055  2222
+  pre_data_bits   16
+  pre_data       0x0000
+  gap          108123
+  toggle_bit_mask 0x0
+  
