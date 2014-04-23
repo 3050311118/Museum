@@ -12,7 +12,12 @@ begin remote
   ptrail        591
   repeat       9055  2222
   pre_data_bits   16
-  pre_data       0x0000
+  pre_data       0x1234
   gap          108123
   toggle_bit_mask 0x0
-  
+
+      begin codes
+          VOL+                     0x1234
+      end codes
+
+end remote

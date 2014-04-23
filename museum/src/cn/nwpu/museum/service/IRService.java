@@ -1,13 +1,13 @@
 package cn.nwpu.museum.service;
 
-import java.io.BufferedInputStream;
 import java.io.BufferedReader;
 import java.io.File;
-import java.io.FileNotFoundException;
 import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.io.PrintWriter;
+import java.util.Timer;
+import java.util.TimerTask;
 
-import android.R.integer;
 import android.content.Context;
 import android.content.res.AssetManager;
 import android.media.AudioFormat;
@@ -28,16 +28,21 @@ public class IRService {
    public static IRService getIRServiceInstance(){
 	   if(irService != null) return irService;
 	   return new IRService();
+	  
    }
     
    private byte buffer[];
    private Lirc lirc;
-   public AudioTrack ir;
+   public AudioTrack ir = null;
    public  int bufSize = AudioTrack.getMinBufferSize(48000,
        		AudioFormat.CHANNEL_CONFIGURATION_STEREO,
        		AudioFormat.ENCODING_PCM_8BIT);
 	
-	private final static String LIRCD_CONF_FILE = "/sdcard/tmp/museumir.conf";
+	private Timer mTimer = null;
+	private IRTimerThread irthread;
+	
+    private final static String LIRCD_CONF_FILE = "/sdcard/tmp/museumir.conf";
+    
     /**
      * 通过音频口发送红外信号
      */
@@ -50,16 +55,20 @@ public class IRService {
 		    return;
 		 }
 		
-		 ir = new AudioTrack(AudioManager.STREAM_MUSIC, 48000, 
-		  	AudioFormat.CHANNEL_CONFIGURATION_STEREO, AudioFormat.ENCODING_PCM_8BIT, 
-		  	bufSize, AudioTrack.MODE_STATIC);
-
 		  if (bufSize < buffer.length)
 		     	bufSize = buffer.length;
-			
+		 // while(ir != null && ir.getPlayState()==AudioTrack.PLAYSTATE_PLAYING ){}
+		  if(ir != null){
+			  ir.flush();
+		      ir.release();
+		  }
+		  ir = new AudioTrack(AudioManager.STREAM_MUSIC, 48000, 
+					  	AudioFormat.CHANNEL_CONFIGURATION_STEREO, AudioFormat.ENCODING_PCM_8BIT, 
+					  	bufSize, AudioTrack.MODE_STATIC);
+		  
 		  ir.write(buffer, 0, buffer.length);
 		  ir.setStereoVolume(1,1);
-          ir.play();    	
+          ir.play();    
 	 }
     /**
      * 从配置文件读取红外按键信息
@@ -94,30 +103,78 @@ public class IRService {
     	    //从asset中读模板
     		AssetManager am = context.getResources().getAssets();
     	    InputStream is = am.open("irconfig.txt");
-    		BufferedInputStream inputStream = new BufferedInputStream(is);
+    		BufferedReader reader = new BufferedReader(new InputStreamReader(is));
     		PrintWriter pWriter = new PrintWriter(new File(LIRCD_CONF_FILE));
     		
-    		byte[] data = new byte[600];
-    		while(-1 != inputStream.read(data)){
-    			String tempString = new String(data);
-    			pWriter.write(tempString);
-    		}
- 
+    		//byte[] data = new byte[600];
+    		String data;
     		Integer ip = (ipaddress >> 16 ) & 0xFFFF;
     		Integer ip_convert = ~ip & 0xFFFF;
     		String ipString = Integer.toHexString(ip).length()==4?
     				Integer.toHexString(ip) : "0"+Integer.toHexString(ip);
     	    String ipCovertString = Integer.toHexString(ip_convert).length()==4?
-    	    	  Integer.toHexString(ip_convert) : "0"+Integer.toHexString(ip_convert);   		
-		    String configure = "\r\n begin codes \r\n" +
-    		    "VOL+     0x"+  
-    		     ipString + ipCovertString
-                +"  \r\n end codes\r\n end remote";
-			pWriter.write(configure);
+    	    	  Integer.toHexString(ip_convert) : "0"+Integer.toHexString(ip_convert);   
+    		while(null != (data = reader.readLine())){
+    			//String tempString = new String(data);
+    			if(data.contains("pre_data") && !data.contains("pre_data_bits")){
+    				data = data.substring(0, 10) + "    0x" + ipString;
+    			}else if (data.contains("VOL+")){
+    				data = "          VOL+   0x" + ipCovertString;
+    			}
+    			pWriter.println(data);
+    		}
+ 
+    				
+		    /*String configure =
+		        "  pre_data  0x"+ipString + "\r\n" +
+		    	"  gap     108123" + "\r\n" +  
+		        "  toggle_bit_mask 0x0" + "\r\n\r\n"+
+		        "  begin codes" + "\r\n" +
+    		    "    VOL+   0x"+ipCovertString +"\r\n" +
+                "  end codes\r\n\r\n"+
+    		    "end remote";*/
+    	  
+			//pWriter.write(configure);
+			//pWriter.println(configure);
 			pWriter.close();
-			inputStream.close();
+			reader.close();
+			//inputStream.close();
     	} catch (Exception e) {
 			e.printStackTrace();
 		}
+    }
+    
+    public class IRTimerThread extends TimerTask{
+
+		@Override
+		public void run() {
+			try {
+				sendSignal();
+			} catch (Exception e) {
+				e.printStackTrace();
+			}
+			
+		}
+    }
+    
+   /**
+    *  开启红外发射
+    * @param interval 单位ms
+    */
+    public void StartIRThread(long interval){
+    	if(mTimer == null){
+    		mTimer = new Timer();
+    	}
+        irthread = new IRTimerThread();
+    	mTimer.schedule(irthread, 0, interval);  
+    }
+   
+    public void StopIRThread(){
+    	if(mTimer != null){
+    		mTimer.cancel();
+    	}
+    	if(irthread != null){
+    		irthread.cancel();
+    	}   		
     }
 }

@@ -7,11 +7,8 @@ import android.app.Activity;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.Canvas;
-import android.graphics.Color;
 import android.graphics.Matrix;
-import android.graphics.Paint;
 import android.graphics.PointF;
-import android.graphics.RectF;
 import android.graphics.drawable.BitmapDrawable;
 import android.util.FloatMath;
 import android.util.Log;
@@ -21,7 +18,6 @@ import android.view.View;
 import android.view.View.OnTouchListener;
 import android.widget.Button;
 import android.widget.ImageView;
-import android.widget.TabHost;
 
 public class MapActivity extends Activity {
 

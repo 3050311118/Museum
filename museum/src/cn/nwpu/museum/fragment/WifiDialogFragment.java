@@ -17,12 +17,14 @@ public class WifiDialogFragment extends DialogFragment {
         AlertDialog.Builder builder = new AlertDialog.Builder(getActivity());
         builder.setMessage(R.string.wifi_dialog_title)
                .setPositiveButton(R.string.wifi_dialog_btn_ok, new DialogInterface.OnClickListener() {
-                   public void onClick(DialogInterface dialog, int id) {
+                   @Override
+				public void onClick(DialogInterface dialog, int id) {
                 	   WifiDialogFragment.this.startActivity(new  Intent(android.provider.Settings.ACTION_SETTINGS));
                    }
                })
                .setNegativeButton(R.string.wifi_dialog_btn_cancel, new DialogInterface.OnClickListener() {
-                   public void onClick(DialogInterface dialog, int id) {
+                   @Override
+				public void onClick(DialogInterface dialog, int id) {
                 	   WifiDialogFragment.this.dismiss();
                    }
                });

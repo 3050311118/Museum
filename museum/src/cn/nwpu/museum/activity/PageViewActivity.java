@@ -1,8 +1,10 @@
 package cn.nwpu.museum.activity;
 
-import cn.nwpu.museum.fragment.CommonUIFragment;
 import cn.nwpu.museum.fragment.HallFragment;
 import cn.nwpu.museum.fragment.LaunchUIFragment;
+import cn.nwpu.museum.fragment.SettingFragment;
+import cn.nwpu.museum.services.UDPService;
+import android.content.Intent;
 import android.os.Bundle;
 import android.support.v4.app.Fragment;
 import android.support.v4.app.FragmentManager;
@@ -13,17 +15,17 @@ import android.support.v4.view.ViewPager.OnPageChangeListener;
 import android.util.Log;
 import android.view.Menu;
 import android.view.View;
-import android.widget.ImageButton;
 import android.widget.TabHost;
 import android.widget.TabHost.OnTabChangeListener;
 import android.widget.TabWidget;
-import android.widget.TextView;
+import android.widget.TextView;;
 
 public class PageViewActivity extends FragmentActivity implements OnTabChangeListener {
 
 	private ViewPager mViewPager;
 	private TabFragmentPagerAdapter mAdapter;  
 	private TabHost mTabs;
+	@Override
 	public void onCreate(Bundle savedInstanceState) {  
         super.onCreate(savedInstanceState);  
         setContentView(R.layout.activity_page_view);  
@@ -31,7 +33,8 @@ public class PageViewActivity extends FragmentActivity implements OnTabChangeLis
         mViewPager = (ViewPager) this.findViewById(R.id.pager);
         mTabs=(TabHost)findViewById(R.id.tabhost);  
         initTab();
-        initView();      
+        initView();
+        startUDPService();
     }  
 	
 	private void initTab(){
@@ -93,6 +96,10 @@ public class PageViewActivity extends FragmentActivity implements OnTabChangeLis
 		});
 	}
 
+    public void startUDPService(){
+    	Intent UDPintent = new Intent(this, UDPService.class);
+		startService(UDPintent);
+    }
 	public  class TabFragmentPagerAdapter extends FragmentPagerAdapter{
 	
 		public TabFragmentPagerAdapter(FragmentManager fm) {
@@ -106,7 +113,6 @@ public class PageViewActivity extends FragmentActivity implements OnTabChangeLis
 			case 0:
 				ft = new LaunchUIFragment(PageViewActivity.this);
 				break;
-	
 			case 1:
 				ft = new HallFragment();
 				break;
@@ -115,7 +121,7 @@ public class PageViewActivity extends FragmentActivity implements OnTabChangeLis
 				break;
 	
 			case 3:
-				ft = new CommonUIFragment();	
+				ft = new SettingFragment();	
 				break;
 			}
 			return ft;

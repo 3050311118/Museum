@@ -1,7 +1,6 @@
 package cn.nwpu.museum.activity;
 
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 
 import cn.nwpu.museum.bean.Exhibit;
@@ -9,14 +8,17 @@ import cn.nwpu.museum.fragment.DesciptionFragment;
 import cn.nwpu.museum.fragment.WifiDialogFragment;
 import cn.nwpu.museum.service.ExhibitService;
 import cn.nwpu.museum.service.IRService;
+import cn.nwpu.museum.service.PreferenceService;
+import cn.nwpu.museum.services.UDPService;
 import android.net.wifi.WifiInfo;
 import android.net.wifi.WifiManager;
 import android.os.Bundle;
-import android.R.integer;
-import android.app.Activity;
+import android.os.Handler;
+import android.os.Message;
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
+import android.content.IntentFilter;
 import android.support.v4.app.Fragment;
 import android.support.v4.app.FragmentActivity;
 import android.support.v4.app.FragmentManager;
@@ -49,9 +51,16 @@ public class DescriptionActivity extends FragmentActivity implements OnTabChange
 	 private int numofPages = 0;
 	 private Bundle bundle;
 	 private IRService irService;
-	 private final String SSID = "309b";
+	 private String SSID = "Connectify-me";
+	 
+	 private IntentFilter      mWifiStateIntentFilter; 
+	 private BroadcastReceiver mWifiStateReceiver;
+	 
+	 private final int MESSAGE_ADD_EXHIBIT = 0;
 	 //显示的展品列表
 	 private List<exhibit> mExhibits;
+	 
+	 private PreferenceService ps;
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
@@ -81,6 +90,7 @@ public class DescriptionActivity extends FragmentActivity implements OnTabChange
 			}
 		});
        
+       //初始化tab
        mTabs=(TabHost)findViewById(R.id.tabhost);  
        initTab();
        
@@ -95,6 +105,11 @@ public class DescriptionActivity extends FragmentActivity implements OnTabChange
 	    	   mExhibits.add(new exhibit(null, String.valueOf(exhibit.getExhibitnumber())) );
 	       }
        }else{
+    	   //红外模式，要使用wifi,监听wifi状态变化
+    	   mWifiStateIntentFilter = new IntentFilter();
+    	   mWifiStateIntentFilter.addAction(WifiManager.WIFI_STATE_CHANGED_ACTION);  
+    	   mWifiStateIntentFilter.addAction(UDPService.broadIntentString);
+           mWifiStateReceiver = new WifiStateReceiver(); 
        }
        //测试  --连通后删除
        Button btn_test = (Button)this.findViewById(R.id.btntest);
@@ -108,15 +123,34 @@ public class DescriptionActivity extends FragmentActivity implements OnTabChange
 			mViewPager.setCurrentItem(currentPage);
 		}
 	    });
+       
+        ps = new PreferenceService(this);
 	}
 	
 	
 	@Override
+	protected void onPause() {
+		if(bundle == null ){
+		   unregisterReceiver(mWifiStateReceiver);
+		   irService.StopIRThread();
+		}
+		super.onPause();
+	}
+
+
+	@Override
 	protected void onResume() {
        //红外模式
 		if(bundle == null){
+		   //监听wifi状态变化
+		   registerReceiver(mWifiStateReceiver, mWifiStateIntentFilter);
+		   //监听wifi接收数据
+		   //Intent UDPintent = new Intent(this, UDPService.class);
+		   //startService(UDPintent);
+		   //判断wifi当前的状态	
 	 	   WifiManager wifi_service = (WifiManager)getSystemService(WIFI_SERVICE); 
 	 	   WifiInfo    wifiInfo  = wifi_service.getConnectionInfo(); 
+	 	   SSID = ps.getString(PreferenceService.KEY_SSID);
 	 	   if( wifiInfo == null || wifiInfo.getSSID() == null || !wifiInfo.getSSID().equals(SSID)){
 	     	   WifiDialogFragment wf= new WifiDialogFragment();
 	     	   wf.show(getSupportFragmentManager(),"wifi设置");
@@ -131,13 +165,16 @@ public class DescriptionActivity extends FragmentActivity implements OnTabChange
 				ip += ":" + (ipaddress & 0x0000FF);
 	        	Log.i(TAG, "ip:"+ ip);
 	        	irService.SetConfigure(ipaddress, this);
+	        	irService.StartIRThread(500);
 	        }
+	 	   
  	    }
 		
 		super.onResume();
 	}
 
-
+	
+    
 	//包含展品编号和相关展品的编号
     public class exhibit implements Comparable<Object> {
     	public int[] relatedex;
@@ -162,7 +199,26 @@ public class DescriptionActivity extends FragmentActivity implements OnTabChange
 		getMenuInflater().inflate(R.menu.activity_description, menu);
 		return true;
 	}
-	
+	//添加一个新的展品页
+    private void addExhibit(String exhibitnumber){
+    	numofPages++;
+		currentPage= numofPages-1;
+		mExhibits.add(new exhibit(null,exhibitnumber));
+		mViewPager.setCurrentItem(currentPage);
+    }
+    
+    //初始化handler
+     private Handler mHandler = new Handler() {  
+         @Override
+		public void handleMessage (Message msg) {//此方法在ui线程运行  
+            switch(msg.what) {  
+                case MESSAGE_ADD_EXHIBIT:  
+                	addExhibit(msg.getData().getString("EXHIBITNUMBER"));
+                    break;  
+                }  
+            }  
+        };  
+    
     private void initTab(){
 		
 		mTabs.setup();  
@@ -199,7 +255,8 @@ public class DescriptionActivity extends FragmentActivity implements OnTabChange
         mTabs.setOnTabChangedListener(this);
         mTabs.setCurrentTab(0); 
 	}
-	public class DescriptionPagerAdapter extends FragmentStatePagerAdapter {
+	
+    public class DescriptionPagerAdapter extends FragmentStatePagerAdapter {
 	    public DescriptionPagerAdapter(FragmentManager fm) {
 	        super(fm);
 	    }
@@ -208,7 +265,6 @@ public class DescriptionActivity extends FragmentActivity implements OnTabChange
 	    public Fragment getItem(int i) {
 	        Fragment fragment = new DesciptionFragment(mExhibits.get(i));
 	        Bundle args = new Bundle();
-	        // Our object is just an integer :-P
 	        args.putInt(DesciptionFragment.ARG_OBJECT, i + 1);
 	        fragment.setArguments(args);
 	        return fragment;
@@ -250,9 +306,28 @@ public class DescriptionActivity extends FragmentActivity implements OnTabChange
 	    WifiManager.WIFI_STATE_UNKNOWN     未知
 	     */ 
 		public void onReceive(Context context, Intent intent) {
+			 
+			Log.i(TAG, "receiverBroad" );
+			String  action =  intent.getAction();
+			//接收wifi变化和wifi接收到数据两种广播，这里为wifi数据广播
+			if(action.equals(UDPService.broadIntentString)){
+				String  exhibit = intent.getStringExtra("EXHIBITNUMBER");
+				//addExhibit(exhibit);
+				Log.i(TAG, "getDataBroadCast:"+exhibit  );
+				Message msg = new Message();
+				msg.what = 0;
+				Bundle bundle = new Bundle();
+				bundle.putString("EXHIBITNUMBER", exhibit);
+				msg.setData(bundle);
+				mHandler.sendMessage(msg);
+				return;
+			}
+			//否则，为wifi变化广播
+			WifiDialogFragment wf= new WifiDialogFragment();
 			switch (intent.getIntExtra("wifi_state", 0)) { 
 	        case WifiManager.WIFI_STATE_DISABLING: 
 	            Log.d(TAG, "WIFI STATUS : WIFI_STATE_DISABLING"); 
+		     	wf.show(getSupportFragmentManager(),"wifi设置");
 	            break; 
 	        case WifiManager.WIFI_STATE_DISABLED: 
 	            Log.d(TAG, "WIFI STATUS : WIFI_STATE_DISABLED"); 
@@ -262,11 +337,19 @@ public class DescriptionActivity extends FragmentActivity implements OnTabChange
 	            break; 
 	        case WifiManager.WIFI_STATE_ENABLED: 
 	            Log.d(TAG, "WIFI STATUS : WIFI_STATE_ENABLED"); 
+	            //得到ip地址，写入配置文件中
+	            WifiManager wifi_service = (WifiManager)getSystemService(WIFI_SERVICE); 
+	 	 	    WifiInfo    wifiInfo  = wifi_service.getConnectionInfo(); 
+	        	int ipaddress = wifiInfo.getIpAddress();
+	        	//开启红外
+	        	irService.SetConfigure(ipaddress, DescriptionActivity.this);
 	            break; 
 	        case WifiManager.WIFI_STATE_UNKNOWN: 
 	            Log.d(TAG, "WIFI STATUS : WIFI_STATE_UNKNOWN"); 
+		     	wf.show(getSupportFragmentManager(),"wifi设置");
 	            break; 
 	        } 	
 		}
 	}
+
 }
