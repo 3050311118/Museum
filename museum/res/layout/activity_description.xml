@@ -31,13 +31,13 @@
            android:layout_gravity="right"
            android:layout_marginTop="150dp"  
 	     />
-	       <Button 
+	       <ImageButton 
 	        android:id="@+id/btntest"
             android:layout_width="wrap_content"
            android:layout_height="wrap_content"
-           android:layout_gravity="center"
-           android:layout_marginTop="150dp" 
-           android:text="send" 
+           android:layout_gravity="bottom|right"
+           android:background="@drawable/btn_sendir"
+           
 	     />
      </FrameLayout>
       <TabHost 

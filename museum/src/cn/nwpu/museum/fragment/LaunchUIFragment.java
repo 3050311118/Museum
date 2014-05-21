@@ -5,6 +5,7 @@ import cn.nwpu.museum.activity.DescriptionActivity;
 import cn.nwpu.museum.activity.MapActivity;
 import cn.nwpu.museum.activity.PageViewActivity;
 import cn.nwpu.museum.activity.R;
+import android.annotation.SuppressLint;
 import android.content.Context;
 import android.content.Intent;
 import android.os.Bundle;
@@ -13,12 +14,13 @@ import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.ImageButton;
+@SuppressLint("ValidFragment")
 public class LaunchUIFragment extends Fragment {
 
 	private ImageButton mbtnOpenIR;
 	private ImageButton mbtnOpenMap;
 	private Context mContext;
-	
+		
 	public LaunchUIFragment(Context context){
 		this.mContext = context;
 	}

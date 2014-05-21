@@ -149,6 +149,7 @@ public class IRService {
 		@Override
 		public void run() {
 			try {
+				Log.i(TAG,"sendir");
 				sendSignal();
 			} catch (Exception e) {
 				e.printStackTrace();
@@ -172,9 +173,14 @@ public class IRService {
     public void StopIRThread(){
     	if(mTimer != null){
     		mTimer.cancel();
+    		mTimer = null;
     	}
     	if(irthread != null){
     		irthread.cancel();
     	}   		
+    }
+    
+    public void SendIROnce(){
+    	sendSignal();
     }
 }
