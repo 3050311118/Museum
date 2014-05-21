@@ -1,0 +1,101 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical" 
+     android:padding="5dp">
+    <TextView 
+      android:layout_width="match_parent"
+      android:layout_height="wrap_content"
+      android:text="@string/setting_title_IR_MODE"
+      android:textColor="#FFFFFF"
+      android:textSize="16sp"/>
+
+    <RadioGroup
+        android:id="@+id/radio_group_ir_mode"
+        android:layout_width="match_parent"
+        android:layout_height="36dp"
+        android:background="@drawable/settingbk"
+        android:contentDescription="@string/setting_title_IR_MODE"
+        android:orientation="horizontal" 
+        android:layout_marginTop="5dp"
+        android:layout_marginBottom="5dp">
+
+            <RadioButton android:layout_width="wrap_content" 
+                android:layout_height="wrap_content" 
+                android:id="@+id/radio_ir_mode_continue" 
+                android:text="@string/setting_IR_MODE_CONTINUE" 
+                android:checked="true"/>
+
+            <RadioButton
+                android:id="@+id/radio_ir_mode_button"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:checked="false"
+                android:text="@string/setting_IR_MODE_BUTTON" />
+        
+    </RadioGroup>
+    
+      <TextView 
+      android:layout_width="match_parent"
+      android:layout_height="wrap_content"
+      android:text="@string/setting_titile_IR_SPEECH"
+      android:textColor="#FFFFFF"
+      android:textSize="16sp"/>
+
+    <RadioGroup
+        android:id="@+id/radio_group_ir_speech"
+        android:layout_width="match_parent"
+        android:layout_height="36dp"
+        android:background="@drawable/settingbk"
+        android:contentDescription="@string/setting_titile_IR_SPEECH"
+        android:orientation="horizontal"
+        android:layout_marginTop="5dp"
+        android:layout_marginBottom="5dp">
+
+            <RadioButton android:layout_width="wrap_content" 
+                android:layout_height="wrap_content" 
+                android:id="@+id/radio_ir_speech_yes" 
+                android:text="@string/setting_YES" 
+                android:checked="true"/>
+
+            <RadioButton
+                android:id="@+id/radio_ir_speech_no"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:checked="false"
+                android:text="@string/setting_NO"/>"
+        
+    </RadioGroup>
+    
+    <TextView 
+          android:layout_width="match_parent"
+          android:layout_height="wrap_content"
+          android:text="@string/setting_title_wifi_ssid"
+          android:textColor="#FFFFFF"
+          android:textSize="16sp"/>
+         
+            <RelativeLayout 
+                android:layout_width="match_parent"
+                android:layout_height="36dp"
+                android:background="@drawable/settingbk"
+                android:layout_marginTop="5dp"
+                android:layout_marginBottom="5dp">
+               <TextView 
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:id="@+id/tx_title_wifi_ssid"
+                android:text="未设置" 
+                android:layout_centerVertical="true"
+                android:layout_marginLeft="15dp"
+                android:textSize="16sp"/>
+               <ImageButton 
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:id="@+id/btn_wifi_ssid"
+                android:background="@drawable/ssid_click"
+                android:layout_alignParentRight="true"/>
+            </RelativeLayout>
+       
+       
+</LinearLayout>
