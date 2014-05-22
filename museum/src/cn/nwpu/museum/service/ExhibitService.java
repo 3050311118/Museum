@@ -6,6 +6,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import android.content.Context;
+import android.content.res.AssetFileDescriptor;
 import android.content.res.AssetManager;
 import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
@@ -141,4 +142,10 @@ public class ExhibitService {
         }
         return image;
     }
+
+	public AssetFileDescriptor getAudioPath(String exhibitnum) throws IOException {
+		  AssetManager am = context.getResources().getAssets();
+		  AssetFileDescriptor fileDescriptor = am.openFd(exhibitnum.trim() + ".mp3");
+		  return  fileDescriptor;
+	}
 }

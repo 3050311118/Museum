@@ -21,6 +21,7 @@ import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
+import android.content.res.AssetFileDescriptor;
 import android.support.v4.app.Fragment;
 import android.support.v4.app.FragmentActivity;
 import android.support.v4.app.FragmentManager;
@@ -119,28 +120,33 @@ public class DescriptionActivity extends FragmentActivity implements OnTabChange
 		
 		@Override
 		public void onClick(View v) {
-			/*numofPages++;
-			currentPage= numofPages-1;
-			mExhibits.add(new exhibit(null, String.valueOf(currentPage+1 )));
-			mViewPager.setCurrentItem(currentPage);*/
-			//发送一次红外信号
-			irService.SendIROnce();
-			beep();
+			
+			//停止播放音频
+			stopAudio();
 		}
 	    });
        
         ps = new PreferenceService(this);
         
-        //AudioManager audioManager = (AudioManager) getSystemService(Context.AUDIO_SERVICE);
-    	//audioManager.setMode(AudioManager.STREAM_SYSTEM);
-        //setVolumeControlStream(AudioManager.USE_DEFAULT_STREAM_TYPE);//控制声音的大小
+        
 	}
 	
-	
+    private  MediaPlayer playerSound;
+	private boolean audioStopFlag;
+	private void stopAudio(){
+		//停止播放音频
+		if(playerSound != null && playerSound.isPlaying()){
+			playerSound.stop();
+			//playerSound.release();
+			audioStopFlag = true;
+		}
+	}
+    
 	@Override
 	protected void onPause() {
 		if(bundle == null ){
 		   unregisterReceiver(mWifiStateReceiver);
+		   stopAudio();
 		   irService.StopIRThread();
 		}
 		super.onPause();
@@ -175,7 +181,7 @@ public class DescriptionActivity extends FragmentActivity implements OnTabChange
 				ip += ":" + (ipaddress & 0x0000FF);
 	        	Log.i(TAG, "ip:"+ ip);
 	        	irService.SetConfigure(ipaddress, this);
-	        	irService.StartIRThread(1500);
+	        	irService.StartIRThread(1000);
 	        }
 	 	   
  	    }
@@ -232,7 +238,7 @@ public class DescriptionActivity extends FragmentActivity implements OnTabChange
 			currentPage= numofPages-1;
 			mExhibits.add(newEx);
     	}	
-    	//beep();
+    	playAudio(exhibitnumber);
 		mViewPager.setCurrentItem(currentPage);
     }
     
@@ -248,37 +254,56 @@ public class DescriptionActivity extends FragmentActivity implements OnTabChange
                 }  
             }  
         };  
-    
-    private void beep(){
-    	
-    	Log.i(TAG, "beep");
-    	
-    	Thread beepThread = new Thread() {
-			
-			@Override
-			public void run() {
-				irService.StopIRThread();
-				AudioManager audioManager = (AudioManager) getSystemService(Context.AUDIO_SERVICE);
-		    	audioManager.setMicrophoneMute(false);
-		    	audioManager.setSpeakerphoneOn(true);//使用扬声器外放，即使已经插入耳机
-		    	setVolumeControlStream(AudioManager.STREAM_MUSIC);//控制声音的大小
-		    	audioManager.setMode(AudioManager.STREAM_MUSIC);
-		    	MediaPlayer playerSound = MediaPlayer.create(DescriptionActivity.this, R.raw.beep);
-		    	playerSound.start();
-		    	while (playerSound.isPlaying());
-		    	
-		        audioManager.setMicrophoneMute(true);
-		    	audioManager.setSpeakerphoneOn(false);
-		    	audioManager.setMode(AudioManager.STREAM_SYSTEM);
-		        setVolumeControlStream(AudioManager.USE_DEFAULT_STREAM_TYPE);//控制声音的大小
-		    	irService.StartIRThread(1500);;
-			}
-		};
-		beepThread.start();
 
-    }
-    
-    
+      //播放语音介绍线程
+      class AudioThread extends Thread{
+    		
+        	private String exhibitnum;
+        	public AudioThread(String exhibit){
+        		this.exhibitnum = exhibit;
+        	}
+    		@Override
+    		public void run() {
+    			irService.StopIRThread();
+    			AudioManager audioManager = (AudioManager) getSystemService(Context.AUDIO_SERVICE);
+    	        audioManager.setMode(AudioManager.MODE_IN_COMMUNICATION);
+    	        audioManager.setMicrophoneMute(false);
+    	        audioManager.setSpeakerphoneOn(true);//使用扬声器外放，即使已经插入耳机
+    	    	//MediaPlayer playerSound = MediaPlayer.create(DescriptionActivity.this, R.raw.exhibit1);
+    	        playerSound = new MediaPlayer();
+    	    	ExhibitService es = new ExhibitService(DescriptionActivity.this);
+    	    	try {
+    	    		AssetFileDescriptor fileDescriptor= es.getAudioPath(exhibitnum);
+    				playerSound.setDataSource(fileDescriptor.getFileDescriptor(),fileDescriptor.getStartOffset(),fileDescriptor.getLength());
+    				playerSound.setAudioStreamType(AudioManager.STREAM_MUSIC);//设置流类型
+    		    	playerSound.setLooping(false);	 //设置是否循环播放
+    		    	playerSound.prepare();
+    			} catch (Exception e) {
+    				// TODO Auto-generated catch block
+    				e.printStackTrace();
+    			}
+    	        
+    	    	audioStopFlag = false;
+    	    	playerSound.start();
+    	    	
+    	    	while (playerSound.isPlaying() && !audioStopFlag);
+    	        playerSound.release();
+    	    	playerSound = null;
+    	    	audioManager.setSpeakerphoneOn(false);
+    	        audioManager.setMicrophoneMute(true);
+    		    audioManager.setMode(AudioManager.MODE_NORMAL);
+    		    irService.StartIRThread(1000);
+
+    		}
+    	};
+        //播放音频介绍
+     private void playAudio(String exhibitnum){
+        	
+        	Log.i(TAG, "playAudio");
+        	AudioThread thread = new AudioThread(exhibitnum); 
+        	thread.start();    	
+     }
+        
     private void initTab(){
 		
 		mTabs.setup();  

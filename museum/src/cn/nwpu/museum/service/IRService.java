@@ -123,22 +123,11 @@ public class IRService {
     			}
     			pWriter.println(data);
     		}
- 
-    				
-		    /*String configure =
-		        "  pre_data  0x"+ipString + "\r\n" +
-		    	"  gap     108123" + "\r\n" +  
-		        "  toggle_bit_mask 0x0" + "\r\n\r\n"+
-		        "  begin codes" + "\r\n" +
-    		    "    VOL+   0x"+ipCovertString +"\r\n" +
-                "  end codes\r\n\r\n"+
-    		    "end remote";*/
-    	  
-			//pWriter.write(configure);
-			//pWriter.println(configure);
+
 			pWriter.close();
 			reader.close();
-			//inputStream.close();
+			//ÖØÐÂ½âÎö
+			this.parse(LIRCD_CONF_FILE);
     	} catch (Exception e) {
 			e.printStackTrace();
 		}
