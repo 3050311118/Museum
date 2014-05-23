@@ -16,11 +16,14 @@ import android.net.wifi.WifiInfo;
 import android.net.wifi.WifiManager;
 import android.os.Bundle;
 import android.os.Handler;
+import android.os.IBinder;
 import android.os.Message;
 import android.content.BroadcastReceiver;
+import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
+import android.content.ServiceConnection;
 import android.content.res.AssetFileDescriptor;
 import android.support.v4.app.Fragment;
 import android.support.v4.app.FragmentActivity;
@@ -30,7 +33,6 @@ import android.support.v4.view.ViewPager;
 import android.util.Log;
 import android.view.Menu;
 import android.view.View;
-import android.widget.Button;
 import android.widget.ImageButton;
 import android.widget.TabHost;
 import android.widget.TabHost.OnTabChangeListener;
@@ -60,10 +62,34 @@ public class DescriptionActivity extends FragmentActivity implements OnTabChange
 	// 显示的展品列表
 	private List<exhibit> mExhibits;
 	private PreferenceService ps;
+	// Actually in the same process,this proxy is the real service`s reference!
+	private BackgroundService serviceProxy;
+	private boolean bBound = false;
+	private ServiceConnection sCon;
 
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
+		// >>>>>>>>> bind to BackgroundService
+		sCon = new ServiceConnection() {
+			@Override
+			public void onServiceDisconnected(ComponentName name) {
+				// TODO Auto-generated method stub
+				bBound = false;
+			}
+
+			@Override
+			public void onServiceConnected(ComponentName name, IBinder service) {
+				// TODO Auto-generated method stub
+				BackgroundService.LocalBinder lb = (BackgroundService.LocalBinder) service;
+				serviceProxy = lb.getService();
+				bBound = true;
+			}
+		};
+		Intent bindIntent = new Intent();
+		bindIntent.setClass(getApplicationContext(), BackgroundService.class);
+		bindService(bindIntent, sCon, Context.BIND_AUTO_CREATE);
+		// <<<<<<<<<
 		setContentView(R.layout.activity_description);
 		irService = IRService.getIRServiceInstance();
 		mPagerAdapter = new DescriptionPagerAdapter(getSupportFragmentManager());
@@ -85,7 +111,6 @@ public class DescriptionActivity extends FragmentActivity implements OnTabChange
 					mViewPager.setCurrentItem(++currentPage);
 			}
 		});
-
 		// 初始化tab
 		mTabs = (TabHost) findViewById(R.id.tabhost);
 		initTab();
@@ -105,46 +130,52 @@ public class DescriptionActivity extends FragmentActivity implements OnTabChange
 			mWifiStateIntentFilter.addAction(WifiManager.WIFI_STATE_CHANGED_ACTION);
 			mWifiStateIntentFilter.addAction(UDPService.broadIntentString);
 			mWifiStateReceiver = new WifiStateReceiver();
-       }
-       //测试  --连通后删除
-       ImageButton btn_test = (ImageButton)this.findViewById(R.id.btntest);
-       btn_test.setOnClickListener(new View.OnClickListener() {
-		
-		@Override
-		public void onClick(View v) {
-			
-			//停止播放音频
-			stopAudio();
-		}}
-		);
+		}
+		// 测试 --连通后删除
+		ImageButton btn_test = (ImageButton) this.findViewById(R.id.btntest);
+		btn_test.setOnClickListener(new View.OnClickListener() {
+			@Override
+			public void onClick(View v) {
+				// 停止播放音频
+				stopAudio();
+			}
+		});
 		ps = new PreferenceService(this);
-		
 	}
-	
-    private  MediaPlayer playerSound;
+	private MediaPlayer playerSound;
 	private boolean audioStopFlag;
-	private void stopAudio(){
-		//停止播放音频
-		if(playerSound != null && playerSound.isPlaying()){
+
+	private void stopAudio() {
+		// 停止播放音频
+		if (playerSound != null && playerSound.isPlaying()) {
 			playerSound.stop();
-			//playerSound.release();
+			// playerSound.release();
 			audioStopFlag = true;
 		}
 	}
-    
 
 	@Override
 	protected void onPause() {
 		if (bundle == null) {
 			unregisterReceiver(mWifiStateReceiver);
-			 stopAudio();
+			stopAudio();
 			irService.StopIRThread();
 		}
 		super.onPause();
 		// 打开蓝牙扫描
-		Intent sIntent = new Intent(BackgroundService.ACTION_CMD_RECEIVER);
-		sIntent.putExtra("cmd", BackgroundService.CMD.START_BLUETOOTH_SCAN);
-		sendBroadcast(sIntent);
+		if (bBound) {
+			serviceProxy.startBleScan();
+		}
+	}
+
+	@Override
+	protected void onStop() {
+		// TODO Auto-generated method stub
+		super.onStop();
+		if (bBound) {
+			bBound = false;
+			unbindService(sCon);
+		}
 	}
 
 	@Override
@@ -173,20 +204,16 @@ public class DescriptionActivity extends FragmentActivity implements OnTabChange
 				ip += ":" + ((ipaddress & 0x00FF0000) >> 16);
 				ip += ":" + ((ipaddress & 0x0000FF00) >> 8);
 				ip += ":" + (ipaddress & 0x0000FF);
-
-	        	Log.i(TAG, "ip:"+ ip);
-	        	irService.SetConfigure(ipaddress, this);
-	        	irService.StartIRThread(1000);
-	        }
-	 	   
- 	    }
-		
-
+				Log.i(TAG, "ip:" + ip);
+				irService.SetConfigure(ipaddress, this);
+				irService.StartIRThread(1000);
+			}
+		}
 		super.onResume();
 		// 关闭蓝牙扫描
-		Intent sIntent = new Intent(BackgroundService.ACTION_CMD_RECEIVER);
-		sIntent.putExtra("cmd", BackgroundService.CMD.STOP_BLUETOOTH_SCAN);
-		sendBroadcast(sIntent);
+		if (bBound) {
+			serviceProxy.stopBleScan();
+		}
 	}
 
 	// 包含展品编号和相关展品的编号
@@ -236,7 +263,7 @@ public class DescriptionActivity extends FragmentActivity implements OnTabChange
 			currentPage = numofPages - 1;
 			mExhibits.add(newEx);
 		}
-    	playAudio(exhibitnumber);
+		playAudio(exhibitnumber);
 		mViewPager.setCurrentItem(currentPage);
 	}
 	// 初始化handler
@@ -276,94 +303,88 @@ public class DescriptionActivity extends FragmentActivity implements OnTabChange
 			}
 		};
 		beepThread.start();
-    }
-    
-      //播放语音介绍线程
-      class AudioThread extends Thread{
-    		
-        	private String exhibitnum;
-        	public AudioThread(String exhibit){
-        		this.exhibitnum = exhibit;
-        	}
-    		@Override
-    		public void run() {
-    			irService.StopIRThread();
-    			AudioManager audioManager = (AudioManager) getSystemService(Context.AUDIO_SERVICE);
-    	        audioManager.setMode(AudioManager.MODE_IN_COMMUNICATION);
-    	        audioManager.setMicrophoneMute(false);
-    	        audioManager.setSpeakerphoneOn(true);//使用扬声器外放，即使已经插入耳机
-    	    	//MediaPlayer playerSound = MediaPlayer.create(DescriptionActivity.this, R.raw.exhibit1);
-    	        playerSound = new MediaPlayer();
-    	    	ExhibitService es = new ExhibitService(DescriptionActivity.this);
-    	    	try {
-    	    		AssetFileDescriptor fileDescriptor= es.getAudioPath(exhibitnum);
-    				playerSound.setDataSource(fileDescriptor.getFileDescriptor(),fileDescriptor.getStartOffset(),fileDescriptor.getLength());
-    				playerSound.setAudioStreamType(AudioManager.STREAM_MUSIC);//设置流类型
-    		    	playerSound.setLooping(false);	 //设置是否循环播放
-    		    	playerSound.prepare();
-    			} catch (Exception e) {
-    				// TODO Auto-generated catch block
-    				e.printStackTrace();
-    			}
-    	        
-    	    	audioStopFlag = false;
-    	    	playerSound.start();
-    	    	
-    	    	while (playerSound.isPlaying() && !audioStopFlag);
-    	        playerSound.release();
-    	    	playerSound = null;
-    	    	audioManager.setSpeakerphoneOn(false);
-    	        audioManager.setMicrophoneMute(true);
-    		    audioManager.setMode(AudioManager.MODE_NORMAL);
-    		    irService.StartIRThread(1000);
-
-    		}
-    	};
-        //播放音频介绍
-     private void playAudio(String exhibitnum){
-        	
-        	Log.i(TAG, "playAudio");
-        	AudioThread thread = new AudioThread(exhibitnum); 
-        	thread.start();    	
-     }
-        
-    private void initTab(){
-		
-		mTabs.setup();  
-        TabHost.TabSpec spec=mTabs.newTabSpec("0"); 
-        spec.setContent(R.id.tab1);  
-        spec.setIndicator("首页", this.getResources().getDrawable(R.drawable.ic_home));
-        mTabs.addTab(spec);  
-      
-        spec=mTabs.newTabSpec("1");  
-        spec.setContent(R.id.tab2);  
-        spec.setIndicator("馆藏", this.getResources().getDrawable(R.drawable.ic_exhibition));
-        mTabs.addTab(spec);
-        
-        spec=mTabs.newTabSpec("2");  
-        spec.setContent(R.id.tab3);  
-        spec.setIndicator("地图", this.getResources().getDrawable(R.drawable.ic_map)); 
-        mTabs.addTab(spec);
-        
-        spec=mTabs.newTabSpec("3");  
-        spec.setContent(R.id.tab4);  
-        spec.setIndicator("其它", this.getResources().getDrawable(R.drawable.ic_home));
-        mTabs.addTab(spec);
-        
-        //设置字体大小
-        TabWidget tabWidget = mTabs.getTabWidget();
-        int count = tabWidget.getChildCount();//TabHost中有一个getTabWidget()的方法
-        for (int i = 0; i < count; i++) {
-           View view = tabWidget.getChildTabViewAt(i);   
-           final TextView tv = (TextView) view.findViewById(android.R.id.title);
-           tv.setTextSize(18);
-           tv.setTextColor(this.getResources().getColorStateList( 
-                   android.R.color.white)); 
-        }
-        mTabs.setOnTabChangedListener(this);
-        mTabs.setCurrentTab(0); 
 	}
 
+	// 播放语音介绍线程
+	class AudioThread extends Thread {
+		private String exhibitnum;
+
+		public AudioThread(String exhibit) {
+			this.exhibitnum = exhibit;
+		}
+
+		@Override
+		public void run() {
+			irService.StopIRThread();
+			AudioManager audioManager = (AudioManager) getSystemService(Context.AUDIO_SERVICE);
+			audioManager.setMode(AudioManager.MODE_IN_COMMUNICATION);
+			audioManager.setMicrophoneMute(false);
+			audioManager.setSpeakerphoneOn(true);// 使用扬声器外放，即使已经插入耳机
+			// MediaPlayer playerSound =
+			// MediaPlayer.create(DescriptionActivity.this, R.raw.exhibit1);
+			playerSound = new MediaPlayer();
+			ExhibitService es = new ExhibitService(DescriptionActivity.this);
+			try {
+				AssetFileDescriptor fileDescriptor = es.getAudioPath(exhibitnum);
+				playerSound.setDataSource(fileDescriptor.getFileDescriptor(), fileDescriptor.getStartOffset(),
+						fileDescriptor.getLength());
+				playerSound.setAudioStreamType(AudioManager.STREAM_MUSIC);// 设置流类型
+				playerSound.setLooping(false); // 设置是否循环播放
+				playerSound.prepare();
+			} catch (Exception e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+			audioStopFlag = false;
+			playerSound.start();
+			while (playerSound.isPlaying() && !audioStopFlag)
+				;
+			playerSound.release();
+			playerSound = null;
+			audioManager.setSpeakerphoneOn(false);
+			audioManager.setMicrophoneMute(true);
+			audioManager.setMode(AudioManager.MODE_NORMAL);
+			irService.StartIRThread(1000);
+		}
+	};
+
+	// 播放音频介绍
+	private void playAudio(String exhibitnum) {
+		Log.i(TAG, "playAudio");
+		AudioThread thread = new AudioThread(exhibitnum);
+		thread.start();
+	}
+
+	private void initTab() {
+		mTabs.setup();
+		TabHost.TabSpec spec = mTabs.newTabSpec("0");
+		spec.setContent(R.id.tab1);
+		spec.setIndicator("首页", this.getResources().getDrawable(R.drawable.ic_home));
+		mTabs.addTab(spec);
+		spec = mTabs.newTabSpec("1");
+		spec.setContent(R.id.tab2);
+		spec.setIndicator("馆藏", this.getResources().getDrawable(R.drawable.ic_exhibition));
+		mTabs.addTab(spec);
+		spec = mTabs.newTabSpec("2");
+		spec.setContent(R.id.tab3);
+		spec.setIndicator("地图", this.getResources().getDrawable(R.drawable.ic_map));
+		mTabs.addTab(spec);
+		spec = mTabs.newTabSpec("3");
+		spec.setContent(R.id.tab4);
+		spec.setIndicator("其它", this.getResources().getDrawable(R.drawable.ic_home));
+		mTabs.addTab(spec);
+		// 设置字体大小
+		TabWidget tabWidget = mTabs.getTabWidget();
+		int count = tabWidget.getChildCount();// TabHost中有一个getTabWidget()的方法
+		for (int i = 0; i < count; i++) {
+			View view = tabWidget.getChildTabViewAt(i);
+			final TextView tv = (TextView) view.findViewById(android.R.id.title);
+			tv.setTextSize(18);
+			tv.setTextColor(this.getResources().getColorStateList(android.R.color.white));
+		}
+		mTabs.setOnTabChangedListener(this);
+		mTabs.setCurrentTab(0);
+	}
 
 	public class DescriptionPagerAdapter extends FragmentStatePagerAdapter {
 		public DescriptionPagerAdapter(FragmentManager fm) {

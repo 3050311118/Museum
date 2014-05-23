@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent" >
+
+    <TextView
+        android:id="@+id/tvPosition"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="展馆3"
+        android:gravity="center"
+        android:textSize="25sp" />
+
+    <ListView
+        android:id="@+id/lvMemos"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_above="@+id/etNewMemo"
+        android:layout_below="@id/tvPosition" >
+    </ListView>
+
+    <EditText
+        android:id="@id/etNewMemo"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_alignParentBottom="true"
+        android:layout_toLeftOf="@+id/btnAddMemo" />
+
+    <Button
+        android:id="@id/btnAddMemo"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_alignParentBottom="true"
+        android:layout_alignParentRight="true"
+        android:text="留言" 
+        android:textSize="20sp"
+        />
+
+</RelativeLayout>

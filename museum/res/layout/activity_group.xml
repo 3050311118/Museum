@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent" >
+
+    <ToggleButton
+        android:id="@+id/btnLeader"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:textOff="组队"
+        android:textOn="解散" />
+
+    <ToggleButton
+        android:id="@+id/btnMember"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_below="@id/btnLeader"
+        android:textOff="加入队伍"
+        android:textOn="离队" />
+
+    <Button
+        android:id="@+id/btnSummon"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_below="@id/btnLeader"
+        android:text="召集队员"
+        android:visibility="invisible" />
+
+    <com.fz.nwpupharos.MapView
+        android:id="@+id/ivMap"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:layout_below="@id/btnMember"
+        android:layout_marginBottom="10dp"
+        android:layout_marginLeft="10dp"
+        android:layout_marginRight="10dp" 
+        android:src="@drawable/museum"
+        />
+
+</RelativeLayout>
