@@ -4,6 +4,8 @@ import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileReader;
 import java.util.List;
+import org.json.JSONException;
+import org.json.JSONObject;
 import com.baidu.android.pushservice.PushConstants;
 import com.baidu.android.pushservice.PushManager;
 import com.baidu.frontia.api.FrontiaPushMessageReceiver;
@@ -28,7 +30,6 @@ import android.os.RemoteException;
 public class BackgroundService extends Service implements MConst, InitListener {
 	private static final String TAG = "@BackgroundService : ";
 	private IBinder mBinder = new LocalBinder();// local bind service
-	// 实际上可以用Handler代替！调用静态方法向Handler发送Msg,但参数数据还是得用Intent传递？！
 	private BroadcastReceiver blReceiver;// bluetooth detected receiver.
 	private SpeechSynthesizer mTts = null;// 讯飞语音
 	private SynthesizerListener.Stub ttsListener = null;
@@ -36,6 +37,10 @@ public class BackgroundService extends Service implements MConst, InitListener {
 	private SharedPreferences userPre;
 	private Handler mHandler;
 	private FrontiaPushMessageReceiver pushMsgReceiver;
+	private static final String API_KEY = "2qsjiR5gxxx1atgwqRbAMBNM";
+	// 组长位置更新广播
+	public static final String ACTION_LEADER_POSITION_UPDATE = "com.fz.museum.leaderPositionUpdate";
+	public static final String EXTRA_MAC_ADD = "com.fz.museum.macAdd";
 
 	@Override
 	public IBinder onBind(Intent intent) {
@@ -53,7 +58,7 @@ public class BackgroundService extends Service implements MConst, InitListener {
 		MessageHelper.login();
 		mHandler = new Handler();
 		initPushMsgReceiver();
-		PushManager.startWork(getApplicationContext(), PushConstants.LOGIN_TYPE_API_KEY, "2qsjiR5gxxx1atgwqRbAMBNM");
+		PushManager.startWork(getApplicationContext(), PushConstants.LOGIN_TYPE_API_KEY, API_KEY);
 	}
 
 	/**
@@ -104,6 +109,27 @@ public class BackgroundService extends Service implements MConst, InitListener {
 			public void onMessage(Context arg0, String arg1, String arg2) {
 				// TODO Auto-generated method stub
 				Logger.d(TAG, arg1);
+				// 接收到消息后判断是不是领队位置更新消息，过滤并处理
+				if (true) {
+					// 如果在队伍中
+					String teamNameAndMac = parsePositionUpdateMSg(arg1);
+					Logger.d(TAG, "parsed result:" + teamNameAndMac);
+					if (teamNameAndMac != null && teamNameAndMac.contains(":")) {
+						int indexOfSpilt = teamNameAndMac.indexOf(":");
+						String teamName = teamNameAndMac.substring(0, indexOfSpilt).trim();
+						String mac = teamNameAndMac.substring(indexOfSpilt+1).trim();
+						Logger.d(TAG, "teamName = " + teamName);
+						Logger.d(TAG, "mac = " + mac);
+						if (teamName.equals(userPre.getString("teamName", null))) {
+							// 在该队伍中,广播“组长位置更新”信息
+							Logger.d(TAG, "team match,broadcast !");
+							Intent intent = new Intent();
+							intent.setAction(ACTION_LEADER_POSITION_UPDATE);
+							intent.putExtra(EXTRA_MAC_ADD, mac);
+							sendBroadcast(intent);
+						}
+					}
+				}
 			}
 
 			@Override
@@ -119,7 +145,7 @@ public class BackgroundService extends Service implements MConst, InitListener {
 			@Override
 			public void onBind(Context arg0, int arg1, String arg2, String arg3, String arg4, String arg5) {
 				// TODO Auto-generated method stub
-				Logger.d(TAG, "bind to pushService");
+				Logger.e(TAG, "bind to pushService");
 			}
 		};
 		IntentFilter filter = new IntentFilter();
@@ -138,6 +164,18 @@ public class BackgroundService extends Service implements MConst, InitListener {
 		filter.addAction("com.baidu.android.pushservice.action.RECEIVE");
 		filter.addAction("com.baidu.android.pushservice.action.notification.CLICK");
 		registerReceiver(pushMsgReceiver, filter);
+	}
+
+	private String parsePositionUpdateMSg(String msg) {
+		try {
+			JSONObject msgJson = new JSONObject(msg);
+			String titleBody = msgJson.getString("title");
+			return titleBody.toString().trim();
+		} catch (JSONException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		return null;
 	}
 
 	public void startBleScan() {
@@ -251,9 +289,10 @@ public class BackgroundService extends Service implements MConst, InitListener {
 		String pavilion = MacAndInfo.get(Mac);
 		Logger.w(TAG, Mac + ":" + pavilion);
 		speekOut(pavilion);
-		if (userPre.getBoolean("leader", false)) {
+//		if (userPre.getBoolean("leader", false)) {
+		if(true){
 			Logger.d(TAG, "update current position Mac");
-			leaderUpdatePosition(Mac);
+			leaderUpdatePosition(userPre.getString("teamName", null) + ":" + Mac);
 		}
 	}
 

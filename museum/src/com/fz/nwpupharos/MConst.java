@@ -28,6 +28,16 @@ public interface MConst {
 			put("20cd398070ab", pavilionsTxtAbsDir[4]);
 		}
 	};
+	Map<String, Integer> MacAndIndex = new HashMap<String, Integer>() {
+		private static final long serialVersionUID = 1L;
+		{
+			put("20cd3981c697", 0);
+			put("20cd3981c607", 1);
+			put("20cd39806a0b", 2);
+			put("20cd39807087", 3);
+			put("20cd398070ab", 4);
+		}
+	};
 	String SERVER_ADDR = "http://nwpupharos.duapp.com";
 	String ACTION_LOGIN = SERVER_ADDR + "/public/business/LoginSubmit.action";
 	String ACTION_SNED_SMS = SERVER_ADDR + "/private/message/MessageSaveAndCast.action";

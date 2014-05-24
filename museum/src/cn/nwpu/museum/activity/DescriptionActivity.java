@@ -86,10 +86,11 @@ public class DescriptionActivity extends FragmentActivity implements OnTabChange
 				bBound = true;
 			}
 		};
+		// >>>>>>>>>>>
 		Intent bindIntent = new Intent();
 		bindIntent.setClass(getApplicationContext(), BackgroundService.class);
 		bindService(bindIntent, sCon, Context.BIND_AUTO_CREATE);
-		// <<<<<<<<<
+		//<<<<<<<<<<<<
 		setContentView(R.layout.activity_description);
 		irService = IRService.getIRServiceInstance();
 		mPagerAdapter = new DescriptionPagerAdapter(getSupportFragmentManager());

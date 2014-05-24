@@ -15,6 +15,7 @@ import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.ServiceConnection;
 import android.content.DialogInterface.OnClickListener;
+import android.content.SharedPreferences;
 import android.graphics.Color;
 import android.os.Bundle;
 import android.os.IBinder;
@@ -26,7 +27,7 @@ import android.widget.EditText;
 import android.widget.Toast;
 import android.widget.ToggleButton;
 
-public class GroupActivity extends Activity {
+public class GroupActivity extends Activity implements MConst {
 	private ToggleButton btnLeader, btnMember;
 	private Button btnSummon;
 	private static final String TAG = "GroupActivity";
@@ -36,11 +37,15 @@ public class GroupActivity extends Activity {
 	private ServiceConnection sCon;
 	private MapView mapView;
 	private BroadcastReceiver positionChangedReceiver;
+	// 组长位置更新广播接受者
+	private BroadcastReceiver leaderPositionChangeReceiver;
+	private SharedPreferences usePre;
 
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
 		// TODO Auto-generated method stub
 		super.onCreate(savedInstanceState);
+		usePre = getSharedPreferences("userPre", Context.MODE_PRIVATE);
 		setContentView(R.layout.activity_group);
 		initReceiver();
 		initViews();
@@ -63,6 +68,7 @@ public class GroupActivity extends Activity {
 		Intent bindIntent = new Intent();
 		bindIntent.setClass(getApplicationContext(), BackgroundService.class);
 		bindService(bindIntent, sCon, Context.BIND_AUTO_CREATE);
+		initLeaderPosChangeReceiver();
 		// <<<<<<<<<
 //		mapView.drawPosition(Color.BLACK, 0, 1, 2, 3, 4);
 	}
@@ -73,7 +79,24 @@ public class GroupActivity extends Activity {
 			public void onReceive(Context context, Intent intent) {
 				// TODO Auto-generated method stub
 				String Mac = intent.getStringExtra(BluetoothLe.EXTRA_MAC_ADDR);
-				
+				int index = MacAndIndex.get(Mac);
+				mapView.drawMyself(index);
+				usePre.edit().putInt("myPosition", index).commit();
+			}
+		};
+	}
+
+	private void initLeaderPosChangeReceiver() {
+		leaderPositionChangeReceiver = new BroadcastReceiver() {
+			@Override
+			public void onReceive(Context context, Intent intent) {
+				// TODO Auto-generated method stub
+				Logger.e(TAG, "leader position update, draw position");
+				String leaderMac = intent.getStringExtra(BackgroundService.EXTRA_MAC_ADD);
+				if (leaderMac != null) {
+//					mapView.drawLeader(MacAndIndex.get(leaderMac));
+					mapView.drawMeAndLeader(usePre.getInt("myPosition", -1), MacAndIndex.get(leaderMac));
+				}
 			}
 		};
 	}
@@ -84,6 +107,8 @@ public class GroupActivity extends Activity {
 		super.onResume();
 		IntentFilter iFilter = new IntentFilter(BluetoothLe.ACTION_NODE_DETECTED);
 		registerReceiver(positionChangedReceiver, iFilter);
+		IntentFilter iFilter1 = new IntentFilter(BackgroundService.ACTION_LEADER_POSITION_UPDATE);
+		registerReceiver(leaderPositionChangeReceiver, iFilter1);
 	}
 
 	@Override
@@ -91,6 +116,8 @@ public class GroupActivity extends Activity {
 		// TODO Auto-generated method stub
 		super.onStop();
 		unregisterReceiver(positionChangedReceiver);
+		unregisterReceiver(leaderPositionChangeReceiver);
+		unbindService(sCon);
 	}
 
 	private void initViews() {
