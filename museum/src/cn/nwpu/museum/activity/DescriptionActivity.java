@@ -135,11 +135,11 @@ public class DescriptionActivity extends FragmentActivity implements OnTabChange
 	private boolean audioStopFlag;
 	private void stopAudio(){
 		//停止播放音频
-		if(playerSound != null && playerSound.isPlaying()){
+		/*if(playerSound != null && playerSound.isPlaying()){
 			playerSound.stop();
 			//playerSound.release();
-			audioStopFlag = true;
-		}
+*/			audioStopFlag = true;
+		//}
 	}
     
 	@Override
@@ -147,6 +147,14 @@ public class DescriptionActivity extends FragmentActivity implements OnTabChange
 		if(bundle == null ){
 		   unregisterReceiver(mWifiStateReceiver);
 		   stopAudio();
+		   //等待语音线程结束
+		    try {
+		       if(audioThread != null && audioThread.isAlive()){
+			   audioThread.join();
+		       }
+			} catch (InterruptedException e) {
+				e.printStackTrace();
+			}
 		   irService.StopIRThread();
 		}
 		super.onPause();
@@ -269,7 +277,6 @@ public class DescriptionActivity extends FragmentActivity implements OnTabChange
     	        audioManager.setMode(AudioManager.MODE_IN_COMMUNICATION);
     	        audioManager.setMicrophoneMute(false);
     	        audioManager.setSpeakerphoneOn(true);//使用扬声器外放，即使已经插入耳机
-    	    	//MediaPlayer playerSound = MediaPlayer.create(DescriptionActivity.this, R.raw.exhibit1);
     	        playerSound = new MediaPlayer();
     	    	ExhibitService es = new ExhibitService(DescriptionActivity.this);
     	    	try {
@@ -287,21 +294,26 @@ public class DescriptionActivity extends FragmentActivity implements OnTabChange
     	    	playerSound.start();
     	    	
     	    	while (playerSound.isPlaying() && !audioStopFlag);
+    	    	//用户中断语音
+    	    	if(audioStopFlag == true){
+    	    		playerSound.stop();
+    	    	}
     	        playerSound.release();
     	    	playerSound = null;
     	    	audioManager.setSpeakerphoneOn(false);
     	        audioManager.setMicrophoneMute(true);
     		    audioManager.setMode(AudioManager.MODE_NORMAL);
     		    irService.StartIRThread(1000);
-
+    		    Log.i(TAG, "AudioThread end!");
     		}
     	};
         //播放音频介绍
+     private AudioThread audioThread;
      private void playAudio(String exhibitnum){
         	
-        	Log.i(TAG, "playAudio");
-        	AudioThread thread = new AudioThread(exhibitnum); 
-        	thread.start();    	
+        Log.i(TAG, "playAudio");
+       	audioThread = new AudioThread(exhibitnum); 
+       	audioThread.start();    	
      }
         
     private void initTab(){
