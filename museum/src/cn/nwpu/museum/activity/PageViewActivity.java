@@ -211,7 +211,7 @@ public class PageViewActivity extends FragmentActivity implements OnTabChangeLis
 				return true;
 			}
 		});
-		getMenuInflater().inflate(R.menu.activity_page_view, menu);
+//		getMenuInflater().inflate(R.menu.activity_page_view, menu);
 		return true;
 	}
 

@@ -288,6 +288,7 @@ public class BackgroundService extends Service implements MConst, InitListener {
 		// TODO Auto-generated method stub
 		String pavilion = MacAndInfo.get(Mac);
 		Logger.w(TAG, Mac + ":" + pavilion);
+		userPre.edit().putInt("pageIndex", MacAndIndex.get(Mac)).commit();
 		speekOut(pavilion);
 //		if (userPre.getBoolean("leader", false)) {
 		if(true){
@@ -316,7 +317,7 @@ public class BackgroundService extends Service implements MConst, InitListener {
 	 * ±¾»ú×¢²áÎªLeader
 	 */
 	public void registTobeLeader(String teamName) {
-		userPre.edit().putBoolean("leader", true).putString("teamName", teamName).commit();
+		userPre.edit().putBoolean("isLeader", true).putString("teamName", teamName).commit();
 		BluetoothLe.getInstance(getApplicationContext()).stopScan();
 		mHandler.postDelayed(new Runnable() {
 			@Override

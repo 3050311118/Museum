@@ -70,7 +70,7 @@ public class DescriptionActivity extends FragmentActivity implements OnTabChange
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
-		// >>>>>>>>> bind to BackgroundService
+		// bind to BackgroundService
 		sCon = new ServiceConnection() {
 			@Override
 			public void onServiceDisconnected(ComponentName name) {
@@ -86,11 +86,10 @@ public class DescriptionActivity extends FragmentActivity implements OnTabChange
 				bBound = true;
 			}
 		};
-		// >>>>>>>>>>>
+		
 		Intent bindIntent = new Intent();
 		bindIntent.setClass(getApplicationContext(), BackgroundService.class);
 		bindService(bindIntent, sCon, Context.BIND_AUTO_CREATE);
-		//<<<<<<<<<<<<
 		setContentView(R.layout.activity_description);
 		irService = IRService.getIRServiceInstance();
 		mPagerAdapter = new DescriptionPagerAdapter(getSupportFragmentManager());
@@ -146,21 +145,27 @@ public class DescriptionActivity extends FragmentActivity implements OnTabChange
 	private MediaPlayer playerSound;
 	private boolean audioStopFlag;
 
-	private void stopAudio() {
-		// 停止播放音频
-		if (playerSound != null && playerSound.isPlaying()) {
-			playerSound.stop();
-			// playerSound.release();
-			audioStopFlag = true;
-		}
+	private void stopAudio(){
+	
+		audioStopFlag = true;
 	}
 
 	@Override
 	protected void onPause() {
-		if (bundle == null) {
-			unregisterReceiver(mWifiStateReceiver);
-			stopAudio();
-			irService.StopIRThread();
+		
+		if(bundle == null ){
+		   unregisterReceiver(mWifiStateReceiver);
+		   stopAudio();
+		   //等待语音线程结束
+		    try {
+		       if(audioThread != null && audioThread.isAlive()){
+			      audioThread.join();
+		       }
+			} catch (InterruptedException e) {
+				e.printStackTrace();
+			}
+		   irService.StopIRThread();
+
 		}
 		super.onPause();
 		// 打开蓝牙扫描
@@ -266,126 +271,109 @@ public class DescriptionActivity extends FragmentActivity implements OnTabChange
 		}
 		playAudio(exhibitnumber);
 		mViewPager.setCurrentItem(currentPage);
-	}
-	// 初始化handler
-	private Handler mHandler = new Handler() {
-		@Override
-		public void handleMessage(Message msg) {// 此方法在ui线程运行
-			switch (msg.what) {
-			case MESSAGE_ADD_EXHIBIT:
-				String exhibit = msg.getData().getString("EXHIBITNUMBER");
-				addExhibit(exhibit.substring(0, 1));
-				break;
-			}
-		}
-	};
+    }
+    
+    //初始化handler
+     private Handler mHandler = new Handler() {  
+         @Override
+		public void handleMessage (Message msg) {//此方法在ui线程运行  
+            switch(msg.what) {  
+                case MESSAGE_ADD_EXHIBIT:
+                	String exhibit =msg.getData().getString("EXHIBITNUMBER");
+                	addExhibit(exhibit.substring(0, 1));
+                    break;  
+                }  
+            }  
+        };  
 
-	private void beep() {
-		Log.i(TAG, "beep");
-		Thread beepThread = new Thread() {
-			@Override
-			public void run() {
-				irService.StopIRThread();
-				AudioManager audioManager = (AudioManager) getSystemService(Context.AUDIO_SERVICE);
-				audioManager.setMicrophoneMute(false);
-				audioManager.setSpeakerphoneOn(true);// 使用扬声器外放，即使已经插入耳机
-				setVolumeControlStream(AudioManager.STREAM_MUSIC);// 控制声音的大小
-				audioManager.setMode(AudioManager.STREAM_MUSIC);
-				MediaPlayer playerSound = MediaPlayer.create(DescriptionActivity.this, R.raw.beep);
-				playerSound.start();
-				while (playerSound.isPlaying())
-					;
-				audioManager.setMicrophoneMute(true);
-				audioManager.setSpeakerphoneOn(false);
-				audioManager.setMode(AudioManager.STREAM_SYSTEM);
-				setVolumeControlStream(AudioManager.USE_DEFAULT_STREAM_TYPE);// 控制声音的大小
-				irService.StartIRThread(1500);
-				;
-			}
-		};
-		beepThread.start();
-	}
-
-	// 播放语音介绍线程
-	class AudioThread extends Thread {
-		private String exhibitnum;
-
-		public AudioThread(String exhibit) {
-			this.exhibitnum = exhibit;
-		}
-
-		@Override
-		public void run() {
-			irService.StopIRThread();
-			AudioManager audioManager = (AudioManager) getSystemService(Context.AUDIO_SERVICE);
-			audioManager.setMode(AudioManager.MODE_IN_COMMUNICATION);
-			audioManager.setMicrophoneMute(false);
-			audioManager.setSpeakerphoneOn(true);// 使用扬声器外放，即使已经插入耳机
-			// MediaPlayer playerSound =
-			// MediaPlayer.create(DescriptionActivity.this, R.raw.exhibit1);
-			playerSound = new MediaPlayer();
-			ExhibitService es = new ExhibitService(DescriptionActivity.this);
-			try {
-				AssetFileDescriptor fileDescriptor = es.getAudioPath(exhibitnum);
-				playerSound.setDataSource(fileDescriptor.getFileDescriptor(), fileDescriptor.getStartOffset(),
-						fileDescriptor.getLength());
-				playerSound.setAudioStreamType(AudioManager.STREAM_MUSIC);// 设置流类型
-				playerSound.setLooping(false); // 设置是否循环播放
-				playerSound.prepare();
-			} catch (Exception e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
-			}
-			audioStopFlag = false;
-			playerSound.start();
-			while (playerSound.isPlaying() && !audioStopFlag)
-				;
-			playerSound.release();
-			playerSound = null;
-			audioManager.setSpeakerphoneOn(false);
-			audioManager.setMicrophoneMute(true);
-			audioManager.setMode(AudioManager.MODE_NORMAL);
-			irService.StartIRThread(1000);
-		}
-	};
-
-	// 播放音频介绍
-	private void playAudio(String exhibitnum) {
-		Log.i(TAG, "playAudio");
-		AudioThread thread = new AudioThread(exhibitnum);
-		thread.start();
-	}
-
-	private void initTab() {
-		mTabs.setup();
-		TabHost.TabSpec spec = mTabs.newTabSpec("0");
-		spec.setContent(R.id.tab1);
-		spec.setIndicator("首页", this.getResources().getDrawable(R.drawable.ic_home));
-		mTabs.addTab(spec);
-		spec = mTabs.newTabSpec("1");
-		spec.setContent(R.id.tab2);
-		spec.setIndicator("馆藏", this.getResources().getDrawable(R.drawable.ic_exhibition));
-		mTabs.addTab(spec);
-		spec = mTabs.newTabSpec("2");
-		spec.setContent(R.id.tab3);
-		spec.setIndicator("地图", this.getResources().getDrawable(R.drawable.ic_map));
-		mTabs.addTab(spec);
-		spec = mTabs.newTabSpec("3");
-		spec.setContent(R.id.tab4);
-		spec.setIndicator("其它", this.getResources().getDrawable(R.drawable.ic_home));
-		mTabs.addTab(spec);
-		// 设置字体大小
-		TabWidget tabWidget = mTabs.getTabWidget();
-		int count = tabWidget.getChildCount();// TabHost中有一个getTabWidget()的方法
-		for (int i = 0; i < count; i++) {
-			View view = tabWidget.getChildTabViewAt(i);
-			final TextView tv = (TextView) view.findViewById(android.R.id.title);
-			tv.setTextSize(18);
-			tv.setTextColor(this.getResources().getColorStateList(android.R.color.white));
-		}
-		mTabs.setOnTabChangedListener(this);
-		mTabs.setCurrentTab(0);
-	}
+      //播放语音介绍线程
+      class AudioThread extends Thread{
+    		
+        	private String exhibitnum;
+        	public AudioThread(String exhibit){
+        		this.exhibitnum = exhibit;
+        	}
+    		@Override
+    		public void run() {
+    			irService.StopIRThread();
+    			AudioManager audioManager = (AudioManager) getSystemService(Context.AUDIO_SERVICE);
+    	        audioManager.setMode(AudioManager.MODE_IN_COMMUNICATION);
+    	        audioManager.setMicrophoneMute(false);
+    	        audioManager.setSpeakerphoneOn(true);//使用扬声器外放，即使已经插入耳机
+    	        playerSound = new MediaPlayer();
+    	    	ExhibitService es = new ExhibitService(DescriptionActivity.this);
+    	    	try {
+    	    		AssetFileDescriptor fileDescriptor= es.getAudioPath(exhibitnum);
+    				playerSound.setDataSource(fileDescriptor.getFileDescriptor(),fileDescriptor.getStartOffset(),fileDescriptor.getLength());
+    				playerSound.setAudioStreamType(AudioManager.STREAM_MUSIC);//设置流类型
+    		    	playerSound.setLooping(false);	 //设置是否循环播放
+    		    	playerSound.prepare();
+    			} catch (Exception e) {
+    				// TODO Auto-generated catch block
+    				e.printStackTrace();
+    			}
+    	        
+    	    	audioStopFlag = false;    	 
+    	    	playerSound.start();
+    	    	while (playerSound.isPlaying() && !audioStopFlag);
+    	    	//用户中断语音
+    	    	if(audioStopFlag == true){
+    	    		playerSound.stop();
+    	    	}
+    	        playerSound.release();
+    	    	playerSound = null;
+    	    	audioManager.setSpeakerphoneOn(false);
+    	        audioManager.setMicrophoneMute(true);
+    		    audioManager.setMode(AudioManager.MODE_NORMAL);
+    		    irService.StartIRThread(1000);
+    		    Log.i(TAG, "AudioThread end!");
+    		}
+    	};
+        //播放音频介绍
+     private AudioThread audioThread;
+     private void playAudio(String exhibitnum){
+        	
+        Log.i(TAG, "playAudio");
+       	audioThread = new AudioThread(exhibitnum); 
+       	audioThread.start();    	
+     }
+        
+    private void initTab(){
+		
+		mTabs.setup();  
+        TabHost.TabSpec spec=mTabs.newTabSpec("0"); 
+        spec.setContent(R.id.tab1);  
+        spec.setIndicator("首页", this.getResources().getDrawable(R.drawable.ic_home));
+        mTabs.addTab(spec);  
+      
+        spec=mTabs.newTabSpec("1");  
+        spec.setContent(R.id.tab2);  
+        spec.setIndicator("馆藏", this.getResources().getDrawable(R.drawable.ic_exhibition));
+        mTabs.addTab(spec);
+        
+        spec=mTabs.newTabSpec("2");  
+        spec.setContent(R.id.tab3);  
+        spec.setIndicator("地图", this.getResources().getDrawable(R.drawable.ic_map)); 
+        mTabs.addTab(spec);
+        
+        spec=mTabs.newTabSpec("3");  
+        spec.setContent(R.id.tab4);  
+        spec.setIndicator("其它", this.getResources().getDrawable(R.drawable.ic_home));
+        mTabs.addTab(spec);
+        
+        //设置字体大小
+        TabWidget tabWidget = mTabs.getTabWidget();
+        int count = tabWidget.getChildCount();//TabHost中有一个getTabWidget()的方法
+        for (int i = 0; i < count; i++) {
+           View view = tabWidget.getChildTabViewAt(i);   
+           final TextView tv = (TextView) view.findViewById(android.R.id.title);
+           tv.setTextSize(18);
+           tv.setTextColor(this.getResources().getColorStateList( 
+                   android.R.color.white)); 
+        }
+        mTabs.setOnTabChangedListener(this);
+        mTabs.setCurrentTab(0); 
+    }
 
 	public class DescriptionPagerAdapter extends FragmentStatePagerAdapter {
 		public DescriptionPagerAdapter(FragmentManager fm) {

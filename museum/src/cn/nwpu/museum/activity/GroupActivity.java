@@ -96,6 +96,7 @@ public class GroupActivity extends Activity implements MConst {
 				if (leaderMac != null) {
 //					mapView.drawLeader(MacAndIndex.get(leaderMac));
 					mapView.drawMeAndLeader(usePre.getInt("myPosition", -1), MacAndIndex.get(leaderMac));
+					usePre.edit().putInt("leaderPosition", MacAndIndex.get(leaderMac));
 				}
 			}
 		};
@@ -109,6 +110,7 @@ public class GroupActivity extends Activity implements MConst {
 		registerReceiver(positionChangedReceiver, iFilter);
 		IntentFilter iFilter1 = new IntentFilter(BackgroundService.ACTION_LEADER_POSITION_UPDATE);
 		registerReceiver(leaderPositionChangeReceiver, iFilter1);
+		restorViews();
 	}
 
 	@Override
@@ -122,7 +124,9 @@ public class GroupActivity extends Activity implements MConst {
 
 	private void initViews() {
 		btnLeader = (ToggleButton) findViewById(R.id.btnLeader);
+		btnLeader.setChecked(usePre.getBoolean("isLeader", false));
 		btnMember = (ToggleButton) findViewById(R.id.btnMember);
+		btnMember.setChecked(usePre.getBoolean("isMember", false));
 		btnSummon = (Button) findViewById(R.id.btnSummon);
 		mapView = (MapView) findViewById(R.id.ivMap);
 		btnLeader.setOnCheckedChangeListener(new OnCheckedChangeListener() {
@@ -209,6 +213,20 @@ public class GroupActivity extends Activity implements MConst {
 				}
 			}
 		});
+	}
+
+	private void restorViews() {
+		if (usePre.getBoolean("isLeader", false)) {
+			btnLeader.setChecked(true);
+			btnSummon.setVisibility(View.VISIBLE);
+			btnMember.setVisibility(View.INVISIBLE);
+			mapView.drawMeAndLeader(usePre.getInt("myPosition", -1), usePre.getInt("leaderPosition", -1));
+		}
+		if (usePre.getBoolean("isMember", false)) {
+			btnSummon.setVisibility(View.INVISIBLE);
+			btnMember.setChecked(true);
+			mapView.drawMyself(usePre.getInt("myPosition", -1));
+		}
 	}
 
 	private boolean checkInput(String input) {

@@ -10,6 +10,7 @@ import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
 import android.content.ServiceConnection;
+import android.content.SharedPreferences;
 import android.os.Bundle;
 import android.os.IBinder;
 import android.support.v4.app.Fragment;
@@ -34,11 +35,13 @@ public class Assistant extends FragmentActivity implements MConst {
 	private BackgroundService serviceProxy;
 	private boolean bBound = false;
 	private ServiceConnection sCon;
+	private SharedPreferences userPre;
 
 	@Override
 	protected void onCreate(Bundle arg0) {
 		// TODO Auto-generated method stub
 		super.onCreate(arg0);
+		userPre= getSharedPreferences("userPre", Context.MODE_PRIVATE);
 		sCon = new ServiceConnection() {
 			@Override
 			public void onServiceDisconnected(ComponentName name) {
@@ -69,6 +72,15 @@ public class Assistant extends FragmentActivity implements MConst {
 		fAdapter = new MFragmentPagerAdapter(getSupportFragmentManager());
 		vPager.setAdapter(fAdapter);
 		initViews();
+	}
+
+	/**
+	 * 显示正在播报的业面
+	 */
+	private void restoreView() {
+		int index = userPre.getInt("pageIndex", 0);
+		vPager.setCurrentItem(index);
+		vPager.invalidate();	
 	}
 
 	@Override
@@ -117,6 +129,7 @@ public class Assistant extends FragmentActivity implements MConst {
 	protected void onResume() {
 		// TODO Auto-generated method stub
 		super.onResume();
+		restoreView();
 	}
 
 	@SuppressLint("ValidFragment")
