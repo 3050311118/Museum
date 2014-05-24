@@ -159,7 +159,7 @@ public class DescriptionActivity extends FragmentActivity implements OnTabChange
 		   //等待语音线程结束
 		    try {
 		       if(audioThread != null && audioThread.isAlive()){
-			   audioThread.join();
+			      audioThread.join();
 		       }
 			} catch (InterruptedException e) {
 				e.printStackTrace();
@@ -313,9 +313,8 @@ public class DescriptionActivity extends FragmentActivity implements OnTabChange
     				e.printStackTrace();
     			}
     	        
-    	    	audioStopFlag = false;
+    	    	audioStopFlag = false;    	 
     	    	playerSound.start();
-    	    	
     	    	while (playerSound.isPlaying() && !audioStopFlag);
     	    	//用户中断语音
     	    	if(audioStopFlag == true){

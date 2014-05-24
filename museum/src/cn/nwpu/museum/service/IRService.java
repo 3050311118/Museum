@@ -68,7 +68,7 @@ public class IRService {
 		  
 		  ir.write(buffer, 0, buffer.length);
 		  ir.setStereoVolume(1,1);
-          ir.play();    
+          ir.play();  
 	 }
     /**
      * 从配置文件读取红外按键信息
@@ -166,7 +166,11 @@ public class IRService {
     	}
     	if(irthread != null){
     		irthread.cancel();
-    	}   		
+    	} 
+       if(ir != null && ir.getPlayState()==AudioTrack.PLAYSTATE_PLAYING){
+    	   ir.stop();
+    	   ir.release();
+       }
     }
     
     public void SendIROnce(){
