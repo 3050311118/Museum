@@ -1,8 +1,9 @@
 package cn.nwpu.museum.fragment;
 
 
+import cn.nwpu.museum.activity.Assistant;
 import cn.nwpu.museum.activity.DescriptionActivity;
-import cn.nwpu.museum.activity.MapActivity;
+import cn.nwpu.museum.activity.GroupActivity;
 import cn.nwpu.museum.activity.PageViewActivity;
 import cn.nwpu.museum.activity.R;
 import android.annotation.SuppressLint;
@@ -17,10 +18,14 @@ import android.widget.ImageButton;
 @SuppressLint("ValidFragment")
 public class LaunchUIFragment extends Fragment {
 
-	private ImageButton mbtnOpenIR;
+	private ImageButton mbtnOpenIR,btnOpenGroup;
 	private ImageButton mbtnOpenMap;
+	
 	private Context mContext;
 		
+	public LaunchUIFragment(){
+		super();
+	}
 	public LaunchUIFragment(Context context){
 		this.mContext = context;
 	}
@@ -44,7 +49,16 @@ public class LaunchUIFragment extends Fragment {
 			
 			@Override
 			public void onClick(View v) {
-				Intent intent = new Intent(mContext, MapActivity.class);
+				Intent intent = new Intent(mContext, Assistant.class);
+		        startActivity(intent);
+			}
+		});
+		btnOpenGroup = (ImageButton)rootView.findViewById(R.id.description);
+		btnOpenGroup.setOnClickListener(new View.OnClickListener() {
+			@Override
+			public void onClick(View v) {
+				// TODO Auto-generated method stub
+				Intent intent = new Intent(mContext, GroupActivity.class);
 		        startActivity(intent);
 			}
 		});
