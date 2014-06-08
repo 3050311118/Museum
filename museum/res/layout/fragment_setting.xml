@@ -131,5 +131,35 @@
             android:textOff="打开"
             android:textOn="关闭" />
     </RelativeLayout>
+  <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="自动播报"
+        android:textColor="#FFFFFF"
+        android:textSize="16sp" />
+    <RelativeLayout
+        android:layout_width="match_parent"
+        android:layout_height="36dp"
+        android:layout_marginBottom="5dp"
+        android:layout_marginTop="5dp"
+        android:background="@drawable/settingbk" >
+
+        <TextView
+            android:id="@+id/tx_title_autoSpeek"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_centerVertical="true"
+            android:layout_marginLeft="15dp"
+            android:text="自动播报"
+            android:textSize="16sp" />
+
+        <ToggleButton
+            android:id="@+id/btn_autoSpeek"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_alignParentRight="true"
+            android:textOff="打开"
+            android:textOn="关闭" />
+    </RelativeLayout>
 
 </LinearLayout>

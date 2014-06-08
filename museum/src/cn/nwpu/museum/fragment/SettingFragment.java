@@ -16,6 +16,7 @@ import android.support.v4.app.Fragment;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.webkit.WebView.FindListener;
 import android.widget.CompoundButton;
 import android.widget.CompoundButton.OnCheckedChangeListener;
 import android.widget.ImageButton;
@@ -26,7 +27,7 @@ public class SettingFragment extends Fragment {
 	private ImageButton mImageButton;
 	private TextView mSSIDTextView;
 	private PreferenceService ps;
-	private ToggleButton locationAwareTbtn;
+	private ToggleButton locationAwareTbtn, autoSpeekBtn;
 	private SharedPreferences userPre;
 	// Actually in the same process,this proxy is the real service`s reference!
 	private BackgroundService serviceProxy;
@@ -40,6 +41,15 @@ public class SettingFragment extends Fragment {
 		mImageButton = (ImageButton) rootView.findViewById(R.id.btn_wifi_ssid);
 		locationAwareTbtn = (ToggleButton) rootView.findViewById(R.id.btn_bluetooth);
 		locationAwareTbtn.setChecked(userPre.getBoolean("locationAware", true));
+		autoSpeekBtn = (ToggleButton) rootView.findViewById(R.id.btn_autoSpeek);
+		autoSpeekBtn.setChecked(userPre.getBoolean("autoSpeek", true));
+		autoSpeekBtn.setOnCheckedChangeListener(new OnCheckedChangeListener() {
+			@Override
+			public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
+				// TODO Auto-generated method stub
+				userPre.edit().putBoolean("autoSpeek", isChecked).commit();
+			}
+		});
 		locationAwareTbtn.setOnCheckedChangeListener(new OnCheckedChangeListener() {
 			@Override
 			public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {

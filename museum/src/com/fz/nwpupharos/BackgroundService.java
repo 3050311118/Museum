@@ -109,26 +109,10 @@ public class BackgroundService extends Service implements MConst, InitListener {
 			public void onMessage(Context arg0, String arg1, String arg2) {
 				// TODO Auto-generated method stub
 				Logger.d(TAG, arg1);
+				String teamNameAndMac = parsePositionUpdateMSg(arg1);
 				// 接收到消息后判断是不是领队位置更新消息，过滤并处理
-				if (true) {
-					// 如果在队伍中
-					String teamNameAndMac = parsePositionUpdateMSg(arg1);
-					Logger.d(TAG, "parsed result:" + teamNameAndMac);
-					if (teamNameAndMac != null && teamNameAndMac.contains(":")) {
-						int indexOfSpilt = teamNameAndMac.indexOf(":");
-						String teamName = teamNameAndMac.substring(0, indexOfSpilt).trim();
-						String mac = teamNameAndMac.substring(indexOfSpilt+1).trim();
-						Logger.d(TAG, "teamName = " + teamName);
-						Logger.d(TAG, "mac = " + mac);
-						if (teamName.equals(userPre.getString("teamName", null))) {
-							// 在该队伍中,广播“组长位置更新”信息
-							Logger.d(TAG, "team match,broadcast !");
-							Intent intent = new Intent();
-							intent.setAction(ACTION_LEADER_POSITION_UPDATE);
-							intent.putExtra(EXTRA_MAC_ADD, mac);
-							sendBroadcast(intent);
-						}
-					}
+				if (teamNameAndMac != null) {
+					handlePositionUpdate(teamNameAndMac);
 				}
 			}
 
@@ -164,6 +148,34 @@ public class BackgroundService extends Service implements MConst, InitListener {
 		filter.addAction("com.baidu.android.pushservice.action.RECEIVE");
 		filter.addAction("com.baidu.android.pushservice.action.notification.CLICK");
 		registerReceiver(pushMsgReceiver, filter);
+	}
+
+	private void handlePositionUpdate(String positionMsg) {
+		Logger.d(TAG, "parsed result---->" + positionMsg);
+		if (positionMsg.contains(":")) {
+			int indexOfSpilt = positionMsg.indexOf(":");
+			String teamName = positionMsg.substring(0, indexOfSpilt).trim();
+			String mac = positionMsg.substring(indexOfSpilt + 1).trim();
+			Logger.d(TAG, "teamName = " + teamName);
+			Logger.d(TAG, "mac = " + mac);
+			/**
+			 * 1、判断是否是领队，是则忽略该位置更新消息，return
+			 * 2、判断是否在队中，不是则忽略该消息，return
+			 * 3、不是领队，且在队中，发送领队位置更新广播，有GroupActivity接收，更新领队位置显示
+			 */
+			if (userPre.getBoolean("isLeader", false)) {
+				return;
+			}
+			if (!userPre.getBoolean("isMember", false) || !teamName.equals(userPre.getString("teamName", null))) {
+				return;
+			}
+			// 在该队伍中,广播“组长位置更新”信息
+			Logger.d(TAG, "team match,broadcast !");
+			Intent intent = new Intent();
+			intent.setAction(ACTION_LEADER_POSITION_UPDATE);
+			intent.putExtra(EXTRA_MAC_ADD, mac);
+			sendBroadcast(intent);
+		}
 	}
 
 	private String parsePositionUpdateMSg(String msg) {
@@ -289,11 +301,15 @@ public class BackgroundService extends Service implements MConst, InitListener {
 		String pavilion = MacAndInfo.get(Mac);
 		Logger.w(TAG, Mac + ":" + pavilion);
 		userPre.edit().putInt("pageIndex", MacAndIndex.get(Mac)).commit();
-		speekOut(pavilion);
-//		if (userPre.getBoolean("leader", false)) {
-		if(true){
-			Logger.d(TAG, "update current position Mac");
-			leaderUpdatePosition(userPre.getString("teamName", null) + ":" + Mac);
+		if (userPre.getBoolean("autoSpeek", true)) {
+			// 扫描到展馆，如果自动播报
+			speekOut(pavilion);
+		}
+		if (userPre.getBoolean("isLeader", false)) {
+			if (true) {
+				Logger.d(TAG, "update current position Mac");
+				leaderUpdatePosition(userPre.getString("teamName", null) + ":" + Mac);
+			}
 		}
 	}
 
@@ -318,21 +334,21 @@ public class BackgroundService extends Service implements MConst, InitListener {
 	 */
 	public void registTobeLeader(String teamName) {
 		userPre.edit().putBoolean("isLeader", true).putString("teamName", teamName).commit();
-		BluetoothLe.getInstance(getApplicationContext()).stopScan();
-		mHandler.postDelayed(new Runnable() {
-			@Override
-			public void run() {
-				// TODO Auto-generated method stub
-				BluetoothLe.getInstance(getApplicationContext()).startContinueScan(500, 1500);
-			}
-		}, 500);
+//		BluetoothLe.getInstance(getApplicationContext()).stopScan();
+//		mHandler.postDelayed(new Runnable() {
+//			@Override
+//			public void run() {
+//				// TODO Auto-generated method stub
+//				BluetoothLe.getInstance(getApplicationContext()).startContinueScan(500, 1500);
+//			}
+//		}, 500);
 	}
 
 	/**
 	 * 本机不在为团队Leader，注销
 	 */
 	public void unRegistLeader() {
-		userPre.edit().putBoolean("leader", false).commit();
+		userPre.edit().putBoolean("isLeader", false).commit();
 	}
 
 	/**

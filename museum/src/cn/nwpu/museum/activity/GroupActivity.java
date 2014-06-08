@@ -24,6 +24,7 @@ import android.widget.Button;
 import android.widget.CompoundButton;
 import android.widget.CompoundButton.OnCheckedChangeListener;
 import android.widget.EditText;
+import android.widget.TextView;
 import android.widget.Toast;
 import android.widget.ToggleButton;
 
@@ -36,6 +37,7 @@ public class GroupActivity extends Activity implements MConst {
 	private boolean bBound = false;
 	private ServiceConnection sCon;
 	private MapView mapView;
+	private TextView tvTeamName;
 	private BroadcastReceiver positionChangedReceiver;
 	// 组长位置更新广播接受者
 	private BroadcastReceiver leaderPositionChangeReceiver;
@@ -111,6 +113,7 @@ public class GroupActivity extends Activity implements MConst {
 		IntentFilter iFilter1 = new IntentFilter(BackgroundService.ACTION_LEADER_POSITION_UPDATE);
 		registerReceiver(leaderPositionChangeReceiver, iFilter1);
 		restorViews();
+		usePre.edit().putBoolean("autoSpeek", false).commit();// 关闭自动播报
 	}
 
 	@Override
@@ -120,6 +123,7 @@ public class GroupActivity extends Activity implements MConst {
 		unregisterReceiver(positionChangedReceiver);
 		unregisterReceiver(leaderPositionChangeReceiver);
 		unbindService(sCon);
+		usePre.edit().putBoolean("autoSpeek", true).commit();// 打开自动播报
 	}
 
 	private void initViews() {
@@ -129,6 +133,7 @@ public class GroupActivity extends Activity implements MConst {
 		btnMember.setChecked(usePre.getBoolean("isMember", false));
 		btnSummon = (Button) findViewById(R.id.btnSummon);
 		mapView = (MapView) findViewById(R.id.ivMap);
+		tvTeamName = (TextView) findViewById(R.id.tvTeamName);
 		btnLeader.setOnCheckedChangeListener(new OnCheckedChangeListener() {
 			@Override
 			public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
@@ -150,6 +155,8 @@ public class GroupActivity extends Activity implements MConst {
 										if (bBound) {
 											serviceProxy.registTobeLeader(teamName);
 										}
+										tvTeamName.setText(teamName);
+										tvTeamName.setVisibility(View.VISIBLE);
 									} else {
 										teamNameInput.setText("");
 										Toast.makeText(getApplicationContext(), "队伍名字不合法", Toast.LENGTH_SHORT).show();
@@ -169,6 +176,7 @@ public class GroupActivity extends Activity implements MConst {
 					btnMember.setVisibility(View.VISIBLE);
 					serviceProxy.unRegistLeader();
 					btnSummon.setVisibility(View.INVISIBLE);
+					tvTeamName.setVisibility(View.INVISIBLE);
 				}
 			}
 		});
@@ -191,6 +199,8 @@ public class GroupActivity extends Activity implements MConst {
 									if (checkInput(teamName)) {
 										if (bBound) {
 											serviceProxy.registTobeMember(teamName);
+											tvTeamName.setText(teamName);
+											tvTeamName.setVisibility(View.VISIBLE);
 										}
 									} else {
 										teamNameInput.setText("");
@@ -210,6 +220,7 @@ public class GroupActivity extends Activity implements MConst {
 				} else {
 					btnLeader.setVisibility(View.VISIBLE);
 					serviceProxy.unRegistMember();
+					tvTeamName.setVisibility(View.INVISIBLE);
 				}
 			}
 		});
@@ -221,11 +232,15 @@ public class GroupActivity extends Activity implements MConst {
 			btnSummon.setVisibility(View.VISIBLE);
 			btnMember.setVisibility(View.INVISIBLE);
 			mapView.drawMeAndLeader(usePre.getInt("myPosition", -1), usePre.getInt("leaderPosition", -1));
+			tvTeamName.setText(usePre.getString("teamName", null));
+			tvTeamName.setVisibility(View.VISIBLE);
 		}
 		if (usePre.getBoolean("isMember", false)) {
 			btnSummon.setVisibility(View.INVISIBLE);
 			btnMember.setChecked(true);
 			mapView.drawMyself(usePre.getInt("myPosition", -1));
+			tvTeamName.setText(usePre.getString("teamName", null));
+			tvTeamName.setVisibility(View.VISIBLE);
 		}
 	}
 
