@@ -17,6 +17,7 @@ import android.content.ServiceConnection;
 import android.content.DialogInterface.OnClickListener;
 import android.content.SharedPreferences;
 import android.graphics.Color;
+import android.graphics.drawable.Drawable;
 import android.os.Bundle;
 import android.os.IBinder;
 import android.view.View;
@@ -95,10 +96,19 @@ public class GroupActivity extends Activity implements MConst {
 				// TODO Auto-generated method stub
 				Logger.e(TAG, "leader position update, draw position");
 				String leaderMac = intent.getStringExtra(BackgroundService.EXTRA_MAC_ADD);
-				if (leaderMac != null) {
+				if (leaderMac.equals("summon")) {
+					// 接收到领队召集信息.显示提示
+					Logger.d(TAG, "领队召集");
+					AlertDialog dialog = new AlertDialog.Builder(GroupActivity.this).setIcon(R.drawable.ic_launcher)
+							.setTitle("集合").setMessage("请注意：领队召集大家集合！").setNegativeButton("取消", null)
+							.setPositiveButton("确定", null).create();
+					dialog.show();
+				} else {
+					if (leaderMac != null) {
 //					mapView.drawLeader(MacAndIndex.get(leaderMac));
-					mapView.drawMeAndLeader(usePre.getInt("myPosition", -1), MacAndIndex.get(leaderMac));
-					usePre.edit().putInt("leaderPosition", MacAndIndex.get(leaderMac));
+						mapView.drawMeAndLeader(usePre.getInt("myPosition", -1), MacAndIndex.get(leaderMac));
+						usePre.edit().putInt("leaderPosition", MacAndIndex.get(leaderMac));
+					}
 				}
 			}
 		};
@@ -132,6 +142,15 @@ public class GroupActivity extends Activity implements MConst {
 		btnMember = (ToggleButton) findViewById(R.id.btnMember);
 		btnMember.setChecked(usePre.getBoolean("isMember", false));
 		btnSummon = (Button) findViewById(R.id.btnSummon);
+		btnSummon.setOnClickListener(new View.OnClickListener() {
+			@Override
+			public void onClick(View v) {
+				// TODO Auto-generated method stub
+				if (bBound) {
+					serviceProxy.leaderUpdatePosition(usePre.getString("teamName", null) + ":" + "summon");// 特殊Mac：summon，表示领队召集信息
+				}
+			}
+		});
 		mapView = (MapView) findViewById(R.id.ivMap);
 		tvTeamName = (TextView) findViewById(R.id.tvTeamName);
 		btnLeader.setOnCheckedChangeListener(new OnCheckedChangeListener() {
@@ -236,6 +255,7 @@ public class GroupActivity extends Activity implements MConst {
 			tvTeamName.setVisibility(View.VISIBLE);
 		}
 		if (usePre.getBoolean("isMember", false)) {
+			btnLeader.setVisibility(View.INVISIBLE);
 			btnSummon.setVisibility(View.INVISIBLE);
 			btnMember.setChecked(true);
 			mapView.drawMyself(usePre.getInt("myPosition", -1));

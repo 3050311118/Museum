@@ -6,6 +6,7 @@ import java.io.FileReader;
 import java.util.List;
 import org.json.JSONException;
 import org.json.JSONObject;
+import cn.nwpu.museum.activity.R;
 import com.baidu.android.pushservice.PushConstants;
 import com.baidu.android.pushservice.PushManager;
 import com.baidu.frontia.api.FrontiaPushMessageReceiver;
@@ -16,16 +17,20 @@ import com.iflytek.speech.SpeechConstant;
 import com.iflytek.speech.SpeechSynthesizer;
 import com.iflytek.speech.SpeechUtility;
 import com.iflytek.speech.SynthesizerListener;
+import android.app.Notification;
+import android.app.NotificationManager;
 import android.app.Service;
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.SharedPreferences;
+import android.media.AudioManager;
 import android.os.Binder;
 import android.os.Handler;
 import android.os.IBinder;
 import android.os.RemoteException;
+import android.support.v4.app.NotificationCompat;
 
 public class BackgroundService extends Service implements MConst, InitListener {
 	private static final String TAG = "@BackgroundService : ";
@@ -38,6 +43,7 @@ public class BackgroundService extends Service implements MConst, InitListener {
 	private Handler mHandler;
 	private FrontiaPushMessageReceiver pushMsgReceiver;
 	private static final String API_KEY = "2qsjiR5gxxx1atgwqRbAMBNM";
+	public static final int ID_NOTI_SUMMON = 1025;
 	// 组长位置更新广播
 	public static final String ACTION_LEADER_POSITION_UPDATE = "com.fz.museum.leaderPositionUpdate";
 	public static final String EXTRA_MAC_ADD = "com.fz.museum.macAdd";
@@ -65,6 +71,10 @@ public class BackgroundService extends Service implements MConst, InitListener {
 	 * init tts engine.
 	 */
 	private void initTts() {
+		AudioManager audioManager = (AudioManager) getSystemService(Context.AUDIO_SERVICE);
+		audioManager.setMode(AudioManager.MODE_IN_COMMUNICATION);
+		audioManager.setMicrophoneMute(false);
+		audioManager.setSpeakerphoneOn(true);// 使用扬声器外放，即使已经插入耳机
 		SpeechUtility.getUtility(this).setAppid("534fb05e");
 		mTts = new SpeechSynthesizer(this, this);
 		ttsListener = new TtsListener();
@@ -151,11 +161,27 @@ public class BackgroundService extends Service implements MConst, InitListener {
 	}
 
 	private void handlePositionUpdate(String positionMsg) {
+		final String SUMMON = "summon";// 领队召集
 		Logger.d(TAG, "parsed result---->" + positionMsg);
 		if (positionMsg.contains(":")) {
 			int indexOfSpilt = positionMsg.indexOf(":");
 			String teamName = positionMsg.substring(0, indexOfSpilt).trim();
 			String mac = positionMsg.substring(indexOfSpilt + 1).trim();
+			// 如果领队发出召集信息，则广播该信息，在groupActivity中接收处理
+			if (mac.equals("SUMMON")) {
+				if (userPre.getBoolean("isMember", false)) {
+					NotificationManager notiManager = (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
+					Notification noti = new NotificationCompat.Builder(this).setTicker("领队召集").setContentText("领队召集")
+							.setContentTitle("召集").setSmallIcon(R.drawable.ic_launcher)
+							.setDefaults(Notification.DEFAULT_ALL).build();
+					notiManager.notify(ID_NOTI_SUMMON, noti);
+					Intent intent = new Intent(ACTION_LEADER_POSITION_UPDATE);
+//					notiManager = null;
+					intent.putExtra(EXTRA_MAC_ADD, SUMMON);
+					sendBroadcast(intent);
+					return;
+				}
+			}
 			Logger.d(TAG, "teamName = " + teamName);
 			Logger.d(TAG, "mac = " + mac);
 			/**
@@ -313,7 +339,7 @@ public class BackgroundService extends Service implements MConst, InitListener {
 		}
 	}
 
-	private void leaderUpdatePosition(String Mac) {
+	public void leaderUpdatePosition(String Mac) {
 		MessageHelper.sendPositionUpdate(new PositionUpdate(Mac), new ResultListener() {
 			@Override
 			public void onResultSuccess() {
