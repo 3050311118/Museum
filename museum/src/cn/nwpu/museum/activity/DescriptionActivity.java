@@ -143,6 +143,11 @@ public class DescriptionActivity extends FragmentActivity implements OnTabChange
 			}
 		});
 		ps = new PreferenceService(this);
+		
+		AudioManager audioManager = (AudioManager) getSystemService(Context.AUDIO_SERVICE);
+		audioManager.setSpeakerphoneOn(false);
+		audioManager.setMicrophoneMute(true);
+		audioManager.setMode(AudioManager.MODE_NORMAL);
 	}
 	private MediaPlayer playerSound;
 	private boolean audioStopFlag;
@@ -185,13 +190,17 @@ public class DescriptionActivity extends FragmentActivity implements OnTabChange
 
 	@Override
 	protected void onStop() {
-		// TODO Auto-generated method stub
 		super.onStop();
 		usePre.edit().putBoolean("autoSpeek", true).commit();// 打开自动播报
 		if (bBound) {
 			bBound = false;
 			unbindService(sCon);
 		}
+		
+		AudioManager audioManager = (AudioManager) getSystemService(Context.AUDIO_SERVICE);
+		audioManager.setMode(AudioManager.MODE_IN_COMMUNICATION);
+		audioManager.setMicrophoneMute(false);
+		audioManager.setSpeakerphoneOn(true);// 使用扬声器外放，即使已经插入耳机
 	}
 
 	@Override
@@ -272,6 +281,8 @@ public class DescriptionActivity extends FragmentActivity implements OnTabChange
 
 	// 添加一个新的展品页
 	private void addExhibit(String exhibitnumber) {
+		
+		if(this.audioThread != null) return;  //防止同时开启两个线程
 		exhibit newEx = new exhibit(null, exhibitnumber);
 		if (mExhibits.contains(newEx)) {
 			currentPage = mExhibits.indexOf(newEx);
@@ -339,6 +350,7 @@ public class DescriptionActivity extends FragmentActivity implements OnTabChange
 			audioManager.setMode(AudioManager.MODE_NORMAL);
 			irService.StartIRThread(1000);
 			Log.i(TAG, "AudioThread end!");
+			audioThread = null;
 		}
 	};
 	// 播放音频介绍

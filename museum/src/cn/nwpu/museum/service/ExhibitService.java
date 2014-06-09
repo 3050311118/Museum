@@ -13,13 +13,26 @@ import android.database.sqlite.SQLiteDatabase;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import cn.nwpu.museum.bean.Exhibit;
+import cn.nwpu.museum.db.DBManager;
 import cn.nwpu.museum.db.DBOpenHelper;
 
 public class ExhibitService {
 
-    private DBOpenHelper dbOpenHelper;
-	
+    //private DBOpenHelper dbOpenHelper;
+	private DBManager dbManager;
     private Context context;
+    
+    private SQLiteDatabase db;
+    
+    
+    private void openDB(){
+       this.db = dbManager.openDatabase();
+    }
+    
+    private void closeDB(){
+    	dbManager.closeDatabase();    	
+    }
+
     /**
      *   Exhibit:                      columm
      *   private int id;               exhibitid
@@ -30,30 +43,33 @@ public class ExhibitService {
      * @param context
      */
 	public ExhibitService(Context context){
-		this.dbOpenHelper = new DBOpenHelper(context);
+		//this.dbOpenHelper = new DBOpenHelper(context);
+		this.dbManager = new DBManager(context);
 		this.context = context;
+		openDB();
 	}
 	
+	
 	public void save(Exhibit exhibit){
-		SQLiteDatabase db = dbOpenHelper.getWritableDatabase();
+		//SQLiteDatabase db = dbOpenHelper.getWritableDatabase();
 		db.execSQL("insert into exhibit(name,description,exhibitnumber,hallnumber) values(?,?,?,?)",
 				  new Object[]{exhibit.getName(),exhibit.getDescription(),exhibit.getExhibitnumber(),exhibit.getHallnumber()});
 	}
 	
 	
 	public void update(Exhibit exhibit){
-		SQLiteDatabase db = dbOpenHelper.getWritableDatabase();
+		//SQLiteDatabase db = dbOpenHelper.getWritableDatabase();
 		db.execSQL("update exhibit set name=?,description=?,exhibitnumber=? hallnumber=? where exhibitid=?",
 				new Object[]{exhibit.getName(),exhibit.getDescription(),exhibit.getExhibitnumber(),exhibit.getHallnumber()});
 	}
 	
 	public void delete(Integer index){
-		SQLiteDatabase db = dbOpenHelper.getWritableDatabase();
+		//SQLiteDatabase db = dbOpenHelper.getWritableDatabase();
 	    db.execSQL("delete from exhibit where exhibitid=?",new Object[]{index});
 	}
 	
 	public Exhibit find(Integer index){
-		SQLiteDatabase db = dbOpenHelper.getReadableDatabase();
+		//SQLiteDatabase db = dbOpenHelper.getReadableDatabase();
 	    Cursor cursor = db.rawQuery("select * from exhibit where exhibitid=?", new String[]{index.toString()});
 	    if(cursor.moveToFirst()){
 	    	int id = cursor.getInt(cursor.getColumnIndex("exhibitid"));
@@ -68,7 +84,7 @@ public class ExhibitService {
 	}
 	
 	public Exhibit findByNumber(Integer number){
-		SQLiteDatabase db = dbOpenHelper.getReadableDatabase();
+		//SQLiteDatabase db = dbOpenHelper.getReadableDatabase();
 	    Cursor cursor = db.rawQuery("select * from exhibit where exhibitnumber=?", new String[]{number.toString()});
 	    if(cursor.moveToFirst()){
 	    	int id = cursor.getInt(cursor.getColumnIndex("exhibitid"));
@@ -89,7 +105,7 @@ public class ExhibitService {
 	 */
 	public List<Exhibit> findByHall(String hallnumber){
 		List<Exhibit> Exhibits = new ArrayList<Exhibit>();
-		SQLiteDatabase db = dbOpenHelper.getReadableDatabase();
+		//SQLiteDatabase db = dbOpenHelper.getReadableDatabase();
 		Cursor cursor = db.rawQuery("select * from exhibit where hallnumber=? order by exhibitnumber asc", new String[]{hallnumber});
 	    while(cursor.moveToNext()){
 	    	int id = cursor.getInt(cursor.getColumnIndex("exhibitid"));
@@ -103,7 +119,7 @@ public class ExhibitService {
 	}
 	public List<Exhibit> getAll(){
 		List<Exhibit> Exhibits = new ArrayList<Exhibit>();
-		SQLiteDatabase db = dbOpenHelper.getReadableDatabase();
+		//SQLiteDatabase db = dbOpenHelper.getReadableDatabase();
 		Cursor cursor = db.rawQuery("select * from exhibit order by exhibitnumber asc", null);
 	    while(cursor.moveToNext()){
 	    	int id = cursor.getInt(cursor.getColumnIndex("exhibitid"));
@@ -118,7 +134,7 @@ public class ExhibitService {
 	
 	public long getCount(){
 		
-		SQLiteDatabase db = dbOpenHelper.getReadableDatabase();
+		//SQLiteDatabase db = dbOpenHelper.getReadableDatabase();
 		Cursor cursor = db.rawQuery("select count(*) from exhibit", null);
 		cursor.moveToFirst();
 		long result = cursor.getLong(0);
