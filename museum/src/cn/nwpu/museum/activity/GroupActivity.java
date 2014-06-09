@@ -52,7 +52,7 @@ public class GroupActivity extends Activity implements MConst {
 		setContentView(R.layout.activity_group);
 		initReceiver();
 		initViews();
-		// >>>>>>>>> bind to BackgroundService
+		initLeaderPosChangeReceiver();
 		sCon = new ServiceConnection() {
 			@Override
 			public void onServiceDisconnected(ComponentName name) {
@@ -65,15 +65,34 @@ public class GroupActivity extends Activity implements MConst {
 				// TODO Auto-generated method stub
 				BackgroundService.LocalBinder lb = (BackgroundService.LocalBinder) service;
 				serviceProxy = lb.getService();
+				serviceProxy.stopSpeek();
 				bBound = true;
+				Logger.w(TAG, "bind service success");
 			}
 		};
+	}
+
+	@Override
+	protected void onStart() {
+		// TODO Auto-generated method stub
+		super.onStart();
+		// 绑定backgroundService
 		Intent bindIntent = new Intent();
 		bindIntent.setClass(getApplicationContext(), BackgroundService.class);
 		bindService(bindIntent, sCon, Context.BIND_AUTO_CREATE);
-		initLeaderPosChangeReceiver();
-		// <<<<<<<<<
-//		mapView.drawPosition(Color.BLACK, 0, 1, 2, 3, 4);
+	}
+
+	@Override
+	protected void onStop() {
+		// TODO Auto-generated method stub
+		super.onStop();
+		unregisterReceiver(positionChangedReceiver);
+		unregisterReceiver(leaderPositionChangeReceiver);
+		if (bBound) {
+			bBound = false;
+			unbindService(sCon);
+		}
+		usePre.edit().putBoolean("autoSpeek", true).commit();// 打开自动播报
 	}
 
 	private void initReceiver() {
@@ -118,25 +137,13 @@ public class GroupActivity extends Activity implements MConst {
 	protected void onResume() {
 		// TODO Auto-generated method stub
 		super.onResume();
+		// -----------
 		IntentFilter iFilter = new IntentFilter(BluetoothLe.ACTION_NODE_DETECTED);
 		registerReceiver(positionChangedReceiver, iFilter);
 		IntentFilter iFilter1 = new IntentFilter(BackgroundService.ACTION_LEADER_POSITION_UPDATE);
 		registerReceiver(leaderPositionChangeReceiver, iFilter1);
 		restorViews();
-		if (bBound) {
-			serviceProxy.stopSpeek();
-		}
 		usePre.edit().putBoolean("autoSpeek", false).commit();// 关闭自动播报
-	}
-
-	@Override
-	protected void onStop() {
-		// TODO Auto-generated method stub
-		super.onStop();
-		unregisterReceiver(positionChangedReceiver);
-		unregisterReceiver(leaderPositionChangeReceiver);
-		unbindService(sCon);
-		usePre.edit().putBoolean("autoSpeek", true).commit();// 打开自动播报
 	}
 
 	private void initViews() {

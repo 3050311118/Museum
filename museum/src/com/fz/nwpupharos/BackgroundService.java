@@ -67,6 +67,7 @@ public class BackgroundService extends Service implements MConst, InitListener {
 		PushManager.startWork(getApplicationContext(), PushConstants.LOGIN_TYPE_API_KEY, API_KEY);
 	}
 
+	
 	/**
 	 * init tts engine.
 	 */

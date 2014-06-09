@@ -3,6 +3,7 @@ package cn.nwpu.museum.activity;
 import java.util.ArrayList;
 import java.util.List;
 import com.fz.nwpupharos.BackgroundService;
+import com.fz.nwpupharos.Logger;
 import cn.nwpu.museum.bean.Exhibit;
 import cn.nwpu.museum.fragment.DesciptionFragment;
 import cn.nwpu.museum.fragment.WifiDialogFragment;
@@ -87,11 +88,10 @@ public class DescriptionActivity extends FragmentActivity implements OnTabChange
 				BackgroundService.LocalBinder lb = (BackgroundService.LocalBinder) service;
 				serviceProxy = lb.getService();
 				bBound = true;
+				serviceProxy.stopSpeek();
+				Logger.w(TAG, "bind service success");
 			}
 		};
-		Intent bindIntent = new Intent();
-		bindIntent.setClass(getApplicationContext(), BackgroundService.class);
-		bindService(bindIntent, sCon, Context.BIND_AUTO_CREATE);
 		setContentView(R.layout.activity_description);
 		irService = IRService.getIRServiceInstance();
 		mPagerAdapter = new DescriptionPagerAdapter(getSupportFragmentManager());
@@ -174,6 +174,16 @@ public class DescriptionActivity extends FragmentActivity implements OnTabChange
 	}
 
 	@Override
+	protected void onStart() {
+		// TODO Auto-generated method stub
+		super.onStart();
+		// 绑定backgroundService
+		Intent bindIntent = new Intent();
+		bindIntent.setClass(getApplicationContext(), BackgroundService.class);
+		bindService(bindIntent, sCon, Context.BIND_AUTO_CREATE);
+	}
+
+	@Override
 	protected void onStop() {
 		// TODO Auto-generated method stub
 		super.onStop();
@@ -186,9 +196,6 @@ public class DescriptionActivity extends FragmentActivity implements OnTabChange
 
 	@Override
 	protected void onResume() {
-		if (bBound) {
-			serviceProxy.stopSpeek();
-		}
 		usePre.edit().putBoolean("autoSpeek", false).commit();// 关闭自动播报
 		// 红外模式
 		if (bundle == null) {
