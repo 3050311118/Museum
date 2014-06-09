@@ -123,6 +123,9 @@ public class GroupActivity extends Activity implements MConst {
 		IntentFilter iFilter1 = new IntentFilter(BackgroundService.ACTION_LEADER_POSITION_UPDATE);
 		registerReceiver(leaderPositionChangeReceiver, iFilter1);
 		restorViews();
+		if (bBound) {
+			serviceProxy.stopSpeek();
+		}
 		usePre.edit().putBoolean("autoSpeek", false).commit();// 关闭自动播报
 	}
 
