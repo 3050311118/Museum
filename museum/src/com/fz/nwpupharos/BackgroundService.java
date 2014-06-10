@@ -67,7 +67,6 @@ public class BackgroundService extends Service implements MConst, InitListener {
 		PushManager.startWork(getApplicationContext(), PushConstants.LOGIN_TYPE_API_KEY, API_KEY);
 	}
 
-	
 	/**
 	 * init tts engine.
 	 */
@@ -325,17 +324,19 @@ public class BackgroundService extends Service implements MConst, InitListener {
 
 	private void handleMac(String Mac) {
 		// TODO Auto-generated method stub
-		String pavilion = MacAndInfo.get(Mac);
-		Logger.w(TAG, Mac + ":" + pavilion);
-		userPre.edit().putInt("pageIndex", MacAndIndex.get(Mac)).commit();
-		if (userPre.getBoolean("autoSpeek", true)) {
-			// 扫描到展馆，如果自动播报
-			speekOut(pavilion);
-		}
-		if (userPre.getBoolean("isLeader", false)) {
-			if (true) {
-				Logger.d(TAG, "update current position Mac");
-				leaderUpdatePosition(userPre.getString("teamName", null) + ":" + Mac);
+		if (!Mac.equals("summon")) {
+			String pavilion = MacAndInfo.get(Mac);
+			Logger.w(TAG, Mac + ":" + pavilion);
+			userPre.edit().putInt("pageIndex", MacAndIndex.get(Mac)).commit();
+			if (userPre.getBoolean("autoSpeek", true)) {
+				// 扫描到展馆，如果自动播报
+				speekOut(pavilion);
+			}
+			if (userPre.getBoolean("isLeader", false)) {
+				if (true) {
+					Logger.d(TAG, "update current position Mac");
+					leaderUpdatePosition(userPre.getString("teamName", null) + ":" + Mac);
+				}
 			}
 		}
 	}
