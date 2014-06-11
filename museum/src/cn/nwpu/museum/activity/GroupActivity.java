@@ -17,7 +17,6 @@ import android.content.ServiceConnection;
 import android.content.DialogInterface.OnClickListener;
 import android.content.SharedPreferences;
 import android.graphics.Color;
-import android.graphics.drawable.Drawable;
 import android.os.Bundle;
 import android.os.IBinder;
 import android.view.View;
@@ -41,7 +40,7 @@ public class GroupActivity extends Activity implements MConst {
 	private TextView tvTeamName;
 	private BroadcastReceiver positionChangedReceiver;
 	// 组长位置更新广播接受者
-	private BroadcastReceiver leaderPositionChangeReceiver;
+	private BroadcastReceiver leaderMsgReceiver;
 	private SharedPreferences usePre;
 
 	@Override
@@ -50,7 +49,7 @@ public class GroupActivity extends Activity implements MConst {
 		super.onCreate(savedInstanceState);
 		usePre = getSharedPreferences("userPre", Context.MODE_PRIVATE);
 		setContentView(R.layout.activity_group);
-		initReceiver();
+		initBleReceiver();
 		initViews();
 		initLeaderPosChangeReceiver();
 		sCon = new ServiceConnection() {
@@ -87,7 +86,7 @@ public class GroupActivity extends Activity implements MConst {
 		// TODO Auto-generated method stub
 		super.onStop();
 		unregisterReceiver(positionChangedReceiver);
-		unregisterReceiver(leaderPositionChangeReceiver);
+		unregisterReceiver(leaderMsgReceiver);
 		if (bBound) {
 			bBound = false;
 			unbindService(sCon);
@@ -95,27 +94,31 @@ public class GroupActivity extends Activity implements MConst {
 		usePre.edit().putBoolean("autoSpeek", true).commit();// 打开自动播报
 	}
 
-	private void initReceiver() {
+	private void initBleReceiver() {
 		positionChangedReceiver = new BroadcastReceiver() {
 			@Override
 			public void onReceive(Context context, Intent intent) {
 				// TODO Auto-generated method stub
 				String Mac = intent.getStringExtra(BluetoothLe.EXTRA_MAC_ADDR);
-				int index = MacAndIndex.get(Mac);
-				mapView.drawMyself(index);
-				usePre.edit().putInt("myPosition", index).commit();
+				// 有可能扫描到"野节点"，此处判断
+				if (MacAndIndex.get(Mac) != null) {
+					int index = MacAndIndex.get(Mac);
+					mapView.drawMyself(index);
+					usePre.edit().putInt("myPosition", index).commit();// 缓存我的位置
+				}
 			}
 		};
 	}
 
 	private void initLeaderPosChangeReceiver() {
-		leaderPositionChangeReceiver = new BroadcastReceiver() {
+		// 此处不会接收到“野节点”，不用判断！
+		leaderMsgReceiver = new BroadcastReceiver() {
 			@Override
 			public void onReceive(Context context, Intent intent) {
 				// TODO Auto-generated method stub
-				Logger.e(TAG, "leader position update, draw position");
-				String leaderMac = intent.getStringExtra(BackgroundService.EXTRA_MAC_ADD);
-				if (leaderMac.equals("summon")) {
+				Logger.e(TAG, "接收到LeaderMsg，分情况处理。");
+				String leaderMsg = intent.getStringExtra(BackgroundService.EXTRA_MAC_OR_CMD);
+				if (leaderMsg.equals("summon")) {
 					// 接收到领队召集信息.显示提示
 					Logger.d(TAG, "领队召集");
 					AlertDialog dialog = new AlertDialog.Builder(GroupActivity.this).setIcon(R.drawable.ic_launcher)
@@ -123,10 +126,10 @@ public class GroupActivity extends Activity implements MConst {
 							.setPositiveButton("确定", null).create();
 					dialog.show();
 				} else {
-					if (leaderMac != null) {
-//					mapView.drawLeader(MacAndIndex.get(leaderMac));
-						mapView.drawMeAndLeader(usePre.getInt("myPosition", -1), MacAndIndex.get(leaderMac));
-						usePre.edit().putInt("leaderPosition", MacAndIndex.get(leaderMac));
+					//接收到领队位置更新消息
+					if (leaderMsg != null) {
+						mapView.drawMeAndLeader(usePre.getInt("myPosition", -1), MacAndIndex.get(leaderMsg));
+						usePre.edit().putInt("leaderPosition", MacAndIndex.get(leaderMsg)).commit();
 					}
 				}
 			}
@@ -140,8 +143,8 @@ public class GroupActivity extends Activity implements MConst {
 		// -----------
 		IntentFilter iFilter = new IntentFilter(BluetoothLe.ACTION_NODE_DETECTED);
 		registerReceiver(positionChangedReceiver, iFilter);
-		IntentFilter iFilter1 = new IntentFilter(BackgroundService.ACTION_LEADER_POSITION_UPDATE);
-		registerReceiver(leaderPositionChangeReceiver, iFilter1);
+		IntentFilter iFilter1 = new IntentFilter(BackgroundService.ACTION_LEADER_MSG);
+		registerReceiver(leaderMsgReceiver, iFilter1);
 		restorViews();
 		usePre.edit().putBoolean("autoSpeek", false).commit();// 关闭自动播报
 	}
@@ -157,7 +160,7 @@ public class GroupActivity extends Activity implements MConst {
 			public void onClick(View v) {
 				// TODO Auto-generated method stub
 				if (bBound) {
-					serviceProxy.leaderUpdatePosition(usePre.getString("teamName", null) + ":" + "summon");// 特殊Mac：summon，表示领队召集信息
+					serviceProxy.sendLeaderMsg(usePre.getString("teamName", null) + ":" + "summon");// 特殊Mac：summon，表示领队召集信息
 				}
 			}
 		});
@@ -255,6 +258,9 @@ public class GroupActivity extends Activity implements MConst {
 		});
 	}
 
+	/**
+	 * 退出,再次进入该Activity时还原界面显式
+	 */
 	private void restorViews() {
 		if (usePre.getBoolean("isLeader", false)) {
 			btnLeader.setChecked(true);

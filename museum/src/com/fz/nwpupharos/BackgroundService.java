@@ -45,8 +45,8 @@ public class BackgroundService extends Service implements MConst, InitListener {
 	private static final String API_KEY = "2qsjiR5gxxx1atgwqRbAMBNM";
 	public static final int ID_NOTI_SUMMON = 1025;
 	// 组长位置更新广播
-	public static final String ACTION_LEADER_POSITION_UPDATE = "com.fz.museum.leaderPositionUpdate";
-	public static final String EXTRA_MAC_ADD = "com.fz.museum.macAdd";
+	public static final String ACTION_LEADER_MSG = "com.fz.museum.leaderMsg";
+	public static final String EXTRA_MAC_OR_CMD = "com.fz.museum.macOrCmd";
 
 	@Override
 	public IBinder onBind(Intent intent) {
@@ -60,7 +60,7 @@ public class BackgroundService extends Service implements MConst, InitListener {
 		super.onCreate();
 		userPre = getSharedPreferences("userPre", Context.MODE_PRIVATE);
 		initTts();
-		initBlReceiver();
+		initBleReceiver();
 		MessageHelper.login();
 		mHandler = new Handler();
 		initPushMsgReceiver();
@@ -83,20 +83,76 @@ public class BackgroundService extends Service implements MConst, InitListener {
 		mTts.setParameter(SpeechSynthesizer.VOICE_NAME, "xiaoyan");
 	}
 
-	private void initBlReceiver() {
+	/**
+	 * 注册蓝牙扫描Receiver
+	 */
+	private void initBleReceiver() {
 		blReceiver = new BroadcastReceiver() {
 			@Override
 			public void onReceive(Context context, Intent intent) {
 				// TODO Auto-generated method stub
 				String Mac = intent.getStringExtra(BluetoothLe.EXTRA_MAC_ADDR);
 				// Mac is fixed in MConst
-				handleMac(Mac);
+				handleScannedMac(Mac);
 			}
 		};
 		IntentFilter iFilter = new IntentFilter(BluetoothLe.ACTION_NODE_DETECTED);
 		registerReceiver(blReceiver, iFilter);
 	}
 
+	/**
+	 * 处理蓝牙扫描到的节点Mac
+	 * 
+	 * @param Mac
+	 */
+	private void handleScannedMac(String Mac) {
+		// TODO Auto-generated method stub
+		// 过滤掉扫描到“野节点判断”！
+		if (MacAndIndex.get(Mac) != null) {
+			String pavilion = MacAndInfo.get(Mac);
+			Logger.w(TAG, Mac + ":" + pavilion);
+			userPre.edit().putInt("pageIndex", MacAndIndex.get(Mac)).commit();// 缓存展馆位置，进入展馆PageView是自动切换到对应页
+			userPre.edit().putInt("myPosition", MacAndIndex.get(Mac)).commit();// 缓存本机位置
+			if (userPre.getBoolean("autoSpeek", true)) {
+				// 扫描到展馆，如果自动播报
+				speekOut(pavilion);
+			}
+			// 如果本机是Leader的话，则广播自己位置更新
+			if (userPre.getBoolean("isLeader", false)) {
+				if (true) {
+					Logger.d(TAG, "update leader position");
+					sendLeaderMsg(userPre.getString("teamName", null) + ":" + Mac);
+				}
+			}
+		}
+	}
+
+	/**
+	 * 发送LeaderMsg，目前用到的有两种消息:
+	 * 1、Leader位置更新消息 "teameName:mac(ad34123df123)"
+	 * 2、Leader召集队员消息"teameName:summon"
+	 * 
+	 * @param Mac
+	 */
+	public void sendLeaderMsg(String leaderMsg) {
+		MessageHelper.sendPositionUpdate(new PositionUpdate(leaderMsg), new ResultListener() {
+			@Override
+			public void onResultSuccess() {
+				// TODO Auto-generated method stub
+				Logger.d(TAG, "upadate position Mac Successed");
+			}
+
+			@Override
+			public void onResultFail(String error) {
+				// TODO Auto-generated method stub
+				Logger.w(TAG, "update position Mac failed!");
+			}
+		});
+	}
+
+	/**
+	 * 注册推送信息Receiver，过滤只接收来自Leader的消息
+	 */
 	private void initPushMsgReceiver() {
 		pushMsgReceiver = new FrontiaPushMessageReceiver() {
 			@Override
@@ -119,10 +175,10 @@ public class BackgroundService extends Service implements MConst, InitListener {
 			public void onMessage(Context arg0, String arg1, String arg2) {
 				// TODO Auto-generated method stub
 				Logger.d(TAG, arg1);
-				String teamNameAndMac = parsePositionUpdateMSg(arg1);
-				// 接收到消息后判断是不是领队位置更新消息，过滤并处理
-				if (teamNameAndMac != null) {
-					handlePositionUpdate(teamNameAndMac);
+				String leaderMsg = parseLeaderMsg(arg1);
+				// 接收到消息后判断是不是LeaderMsg
+				if (leaderMsg != null) {
+					handleLeaderMsg(leaderMsg);
 				}
 			}
 
@@ -143,68 +199,59 @@ public class BackgroundService extends Service implements MConst, InitListener {
 			}
 		};
 		IntentFilter filter = new IntentFilter();
-		/*
-		 * <!-- 接收 push消息 -->
-		 * <action android:name="com.baidu.android.pushservice.action.MESSAGE"
-		 * />
-		 * <!-- 接收 bind、setTags等method 的返回结果 -->
-		 * <action android:name="com.baidu.android.pushservice.action.RECEIVE"
-		 * />
-		 * <!-- 可选。接受通知点击事件，和通知自定义内容 -->
-		 * <action android:name="
-		 * com.baidu.android.pushservice.action.notification.CLICK”/>
-		 */
 		filter.addAction("com.baidu.android.pushservice.action.MESSAGE");
 		filter.addAction("com.baidu.android.pushservice.action.RECEIVE");
 		filter.addAction("com.baidu.android.pushservice.action.notification.CLICK");
 		registerReceiver(pushMsgReceiver, filter);
 	}
 
-	private void handlePositionUpdate(String positionMsg) {
+	/**
+	 * 处理领队发来的消息：1、召集消息 2、领队位置更新消息
+	 * 
+	 * @param leaderSendMsg
+	 */
+	private void handleLeaderMsg(String leaderSendMsg) {
 		final String SUMMON = "summon";// 领队召集
-		Logger.d(TAG, "parsed result---->" + positionMsg);
-		if (positionMsg.contains(":")) {
-			int indexOfSpilt = positionMsg.indexOf(":");
-			String teamName = positionMsg.substring(0, indexOfSpilt).trim();
-			String mac = positionMsg.substring(indexOfSpilt + 1).trim();
-			// 如果领队发出召集信息，则广播该信息，在groupActivity中接收处理
-			if (mac.equals("SUMMON")) {
-				if (userPre.getBoolean("isMember", false)) {
-					NotificationManager notiManager = (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
-					Notification noti = new NotificationCompat.Builder(this).setTicker("领队召集").setContentText("领队召集")
-							.setContentTitle("召集").setSmallIcon(R.drawable.ic_launcher)
-							.setDefaults(Notification.DEFAULT_ALL).build();
-					notiManager.notify(ID_NOTI_SUMMON, noti);
-					Intent intent = new Intent(ACTION_LEADER_POSITION_UPDATE);
-//					notiManager = null;
-					intent.putExtra(EXTRA_MAC_ADD, SUMMON);
-					sendBroadcast(intent);
-					return;
-				}
-			}
+		Logger.d(TAG, "parsed result---->" + leaderSendMsg);
+		if (leaderSendMsg.contains(":")) {
+			int indexOfSpilt = leaderSendMsg.indexOf(":");
+			String teamName = leaderSendMsg.substring(0, indexOfSpilt).trim();
+			String macOrCmd = leaderSendMsg.substring(indexOfSpilt + 1).trim();
 			Logger.d(TAG, "teamName = " + teamName);
-			Logger.d(TAG, "mac = " + mac);
+			Logger.d(TAG, "macOrCmd = " + macOrCmd);
 			/**
-			 * 1、判断是否是领队，是则忽略该位置更新消息，return
-			 * 2、判断是否在队中，不是则忽略该消息，return
-			 * 3、不是领队，且在队中，发送领队位置更新广播，有GroupActivity接收，更新领队位置显示
+			 * 判断是否在消息指定的队伍中且不是领队（避免自发自收！）
+			 * 如果是分情况处理，处理完后将消息直接广播，在GroupActivity中进一步区分处理
 			 */
-			if (userPre.getBoolean("isLeader", false)) {
-				return;
+			if (teamName.equals(userPre.getString("teamName", null)) && !userPre.getBoolean("isLeader", false)) {
+				if (macOrCmd.equals(SUMMON)) {
+					Logger.d(TAG, "领队召集消息！");
+//					NotificationManager notiManager = (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
+//					Notification noti = new NotificationCompat.Builder(this).setTicker("领队召集").setContentText("领队召集")
+//							.setContentTitle("召集").setSmallIcon(R.drawable.ic_launcher)
+//							.setDefaults(Notification.DEFAULT_ALL).build();
+//					notiManager.notify(ID_NOTI_SUMMON, noti);
+				} else {
+					Logger.d(TAG, "领队位置更新消息！");
+					// 此处接收到的Mac不会为野节点！
+					userPre.edit().putInt("leaderPosition", MacAndIndex.get(macOrCmd)).commit();// 缓存leader位置
+				}
+				Intent intent = new Intent();
+				intent.setAction(ACTION_LEADER_MSG);
+				intent.putExtra(EXTRA_MAC_OR_CMD, macOrCmd);
+				sendBroadcast(intent);
 			}
-			if (!userPre.getBoolean("isMember", false) || !teamName.equals(userPre.getString("teamName", null))) {
-				return;
-			}
-			// 在该队伍中,广播“组长位置更新”信息
-			Logger.d(TAG, "team match,broadcast !");
-			Intent intent = new Intent();
-			intent.setAction(ACTION_LEADER_POSITION_UPDATE);
-			intent.putExtra(EXTRA_MAC_ADD, mac);
-			sendBroadcast(intent);
 		}
 	}
 
-	private String parsePositionUpdateMSg(String msg) {
+	/**
+	 * 从Json字符串中获得该应用感兴趣的消息体
+	 * 此处是套用NWPUPharos的遗留问题！
+	 * 
+	 * @param msg
+	 * @return
+	 */
+	private String parseLeaderMsg(String msg) {
 		try {
 			JSONObject msgJson = new JSONObject(msg);
 			String titleBody = msgJson.getString("title");
@@ -216,6 +263,9 @@ public class BackgroundService extends Service implements MConst, InitListener {
 		return null;
 	}
 
+	/**
+	 * 开启BLE扫描
+	 */
 	public void startBleScan() {
 		Logger.d(TAG, "start ble scan.");
 		if (userPre.getBoolean("locationAware", true)) {
@@ -320,41 +370,6 @@ public class BackgroundService extends Service implements MConst, InitListener {
 		PushManager.stopWork(getApplicationContext());
 		unregisterReceiver(pushMsgReceiver);
 		// ensure quit scan!
-	}
-
-	private void handleMac(String Mac) {
-		// TODO Auto-generated method stub
-		if (!Mac.equals("summon")) {
-			String pavilion = MacAndInfo.get(Mac);
-			Logger.w(TAG, Mac + ":" + pavilion);
-			userPre.edit().putInt("pageIndex", MacAndIndex.get(Mac)).commit();
-			if (userPre.getBoolean("autoSpeek", true)) {
-				// 扫描到展馆，如果自动播报
-				speekOut(pavilion);
-			}
-			if (userPre.getBoolean("isLeader", false)) {
-				if (true) {
-					Logger.d(TAG, "update current position Mac");
-					leaderUpdatePosition(userPre.getString("teamName", null) + ":" + Mac);
-				}
-			}
-		}
-	}
-
-	public void leaderUpdatePosition(String Mac) {
-		MessageHelper.sendPositionUpdate(new PositionUpdate(Mac), new ResultListener() {
-			@Override
-			public void onResultSuccess() {
-				// TODO Auto-generated method stub
-				Logger.d(TAG, "upadate position Mac Successed");
-			}
-
-			@Override
-			public void onResultFail(String error) {
-				// TODO Auto-generated method stub
-				Logger.w(TAG, "update position Mac failed!");
-			}
-		});
 	}
 
 	/**
